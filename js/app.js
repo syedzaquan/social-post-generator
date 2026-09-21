@@ -1,6 +1,6 @@
 /* ==========================================================================
    StudioPost — Application Controller
-   Coordinates state, event listeners, canvas rendering, and UI controls.
+   Full-screen canvas with overlay controls, Fraunces SOFT axis & zoom
    ========================================================================== */
 
 import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js';
@@ -14,29 +14,42 @@ import {
 
 class App {
   constructor() {
-    // DOM Elements
+    // Canvas & Stage Elements
     this.previewCanvas = document.getElementById('previewCanvas');
     this.exportCanvas = document.getElementById('exportCanvas');
-    this.canvasWrapper = document.getElementById('canvasWrapper');
+    this.viewportArea = document.getElementById('viewportArea');
+    this.canvasZoomContainer = document.getElementById('canvasZoomContainer');
     this.canvasStage = document.getElementById('canvasStage');
     this.selectionBox = document.getElementById('selectionBox');
     this.selectionTag = document.getElementById('selectionTag');
     this.toastEl = document.getElementById('toast');
 
-    // Tab buttons & panels
+    // Controls Dock & Collapse Toggle
+    this.controlsDock = document.getElementById('controlsDock');
+    this.dockHandleBar = document.getElementById('dockHandleBar');
+    this.btnToggleDock = document.getElementById('btnToggleDock');
+    this.dockToggleIcon = document.getElementById('dockToggleIcon');
     this.dockTabs = document.getElementById('dockTabs');
     this.tabBtns = document.querySelectorAll('.tab-btn');
     this.panels = document.querySelectorAll('.panel');
 
-    // Controls: Export & Reset
+    // Top Bar Controls: Export, Reset & Ratio
     this.btnExport = document.getElementById('btnExport');
     this.btnReset = document.getElementById('btnReset');
-
-    // Controls: Format chips
     this.ratioChips = document.querySelectorAll('.format-chips-bar .chip');
 
-    // Controls: Text
+    // Zoom Controls
+    this.btnZoomIn = document.getElementById('btnZoomIn');
+    this.btnZoomOut = document.getElementById('btnZoomOut');
+    this.btnZoomFit = document.getElementById('btnZoomFit');
+    this.zoom = 1.0;
+
+    // Controls: Text & Fraunces Axes
     this.textInput = document.getElementById('textInput');
+    this.softSlider = document.getElementById('softSlider');
+    this.softValue = document.getElementById('softValue');
+    this.opszSlider = document.getElementById('opszSlider');
+    this.opszValue = document.getElementById('opszValue');
     this.fontWeightSlider = document.getElementById('fontWeightSlider');
     this.fontWeightValue = document.getElementById('fontWeightValue');
     this.fontSizeSlider = document.getElementById('fontSizeSlider');
@@ -91,7 +104,7 @@ class App {
 
     // State Initialization
     this.state = this.getDefaultState();
-    this.selectedLayer = null; // Reference to selected text layer or logo
+    this.selectedLayer = null;
 
     // Services
     this.renderer = new CanvasRenderer(this.previewCanvas, this.exportCanvas);
@@ -130,8 +143,8 @@ class App {
       logo: {
         active: true,
         image: SAMPLE_LOGOS['modern'],
-        x: 130,
-        y: 130,
+        x: Math.round(1080 * 0.05) + 45, // 5% corner padding
+        y: Math.round(1080 * 0.05) + 45,
         size: 90,
         radius: 0,
         opacity: 100,
@@ -143,6 +156,8 @@ class App {
           text: 'Design with intention, craft with soul.',
           fontSize: 58,
           fontWeight: 700,
+          fontOpsz: 72,
+          soft: 0, // Fraunces SOFT axis
           lineHeight: 1.16,
           align: 'left',
           color: '#ffffff',
@@ -157,9 +172,11 @@ class App {
           text: 'STUDIO COLLECTION — 2026',
           fontSize: 16,
           fontWeight: 600,
+          fontOpsz: 24,
+          soft: 0,
           lineHeight: 1.2,
           align: 'left',
-          color: '#c7d2fe',
+          color: '#fecaca',
           italic: false,
           hasShadow: false,
           isBadge: true,
@@ -175,7 +192,7 @@ class App {
     this.populateTemplates();
     this.bindEvents();
     
-    // Select first text layer by default
+    // Default selected text layer
     this.selectTextLayer(this.state.textLayers[0]);
 
     this.updateCanvasDimensions();
@@ -187,32 +204,45 @@ class App {
     });
   }
 
-  // Calculate and resize stage container to fit available screen space
+  // Maximize the canvas size across viewport
   updateCanvasDimensions() {
     const ratioData = ASPECT_RATIOS[this.state.aspectRatio];
     this.renderer.setAspectRatio(this.state.aspectRatio);
 
-    const containerWidth = this.canvasWrapper.clientWidth;
-    const containerHeight = this.canvasWrapper.clientHeight - 24; // buffer
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+
+    // Provide maximum space while leaving comfort for floating bars
+    const maxAvailableWidth = winW > 960 ? winW - 420 : winW - 24;
+    const maxAvailableHeight = winH - 90;
 
     const targetRatio = ratioData.width / ratioData.height;
-
     let stageWidth, stageHeight;
 
-    if (containerWidth / containerHeight > targetRatio) {
-      stageHeight = Math.min(containerHeight, 520);
+    if (maxAvailableWidth / maxAvailableHeight > targetRatio) {
+      stageHeight = maxAvailableHeight;
       stageWidth = stageHeight * targetRatio;
     } else {
-      stageWidth = Math.min(containerWidth - 16, 480);
+      stageWidth = maxAvailableWidth;
       stageHeight = stageWidth / targetRatio;
     }
 
     this.canvasStage.style.width = `${Math.round(stageWidth)}px`;
     this.canvasStage.style.height = `${Math.round(stageHeight)}px`;
 
+    this.applyZoom(this.zoom);
+
     if (this.selectedLayer) {
       setTimeout(() => this.updateSelectionBox(), 20);
     }
+  }
+
+  // Zoom management
+  applyZoom(level) {
+    this.zoom = Math.max(0.35, Math.min(2.5, level));
+    this.canvasZoomContainer.style.transform = `scale(${this.zoom})`;
+    this.btnZoomFit.textContent = this.zoom === 1.0 ? 'Fit' : `${Math.round(this.zoom * 100)}%`;
+    this.updateSelectionBox();
   }
 
   async render() {
@@ -236,9 +266,9 @@ class App {
     }
   }
 
-  // Hit testing when user taps on canvas
+  // Canvas Hit testing on tap/click
   hitTestLayer(canvasX, canvasY) {
-    // 1. Check text layers in reverse order (top to bottom)
+    // 1. Text layers
     for (let i = this.state.textLayers.length - 1; i >= 0; i--) {
       const layer = this.state.textLayers[i];
       const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, layer);
@@ -255,7 +285,7 @@ class App {
       }
     }
 
-    // 2. Check logo layer
+    // 2. Logo layer
     if (this.state.logo && this.state.logo.active) {
       const logoBounds = this.renderer.getLogoBounds(this.state.logo);
       if (
@@ -301,13 +331,34 @@ class App {
     this.panels.forEach(p => {
       p.classList.toggle('active', p.id === `panel-${tabName}`);
     });
+
+    // Auto-expand dock if it was collapsed
+    if (this.controlsDock.classList.contains('collapsed')) {
+      this.toggleDock(false);
+    }
+  }
+
+  toggleDock(shouldCollapse = null) {
+    const willCollapse = shouldCollapse !== null ? shouldCollapse : !this.controlsDock.classList.contains('collapsed');
+    this.controlsDock.classList.toggle('collapsed', willCollapse);
+    this.dockToggleIcon.textContent = willCollapse ? '▲' : '▼';
   }
 
   syncControlsFromState() {
-    // Text controls sync
+    // Text controls & Fraunces axes
     if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
       const l = this.selectedLayer;
       this.textInput.value = l.text || '';
+      
+      // SOFT Axis
+      this.softSlider.value = l.soft ?? 0;
+      this.softValue.textContent = l.soft ?? 0;
+
+      // Optical Size Axis
+      this.opszSlider.value = l.fontOpsz ?? 72;
+      this.opszValue.textContent = l.fontOpsz ?? 72;
+
+      // Font Weight
       this.fontWeightSlider.value = l.fontWeight || 700;
       this.fontWeightValue.textContent = l.fontWeight || 700;
       this.fontSizeSlider.value = l.fontSize || 54;
@@ -330,7 +381,7 @@ class App {
       });
     }
 
-    // Logo controls sync
+    // Logo controls
     if (this.state.logo) {
       this.toggleLogoActive.checked = this.state.logo.active;
       this.logoSizeSlider.value = this.state.logo.size;
@@ -341,7 +392,7 @@ class App {
       this.logoOpacityValue.textContent = `${this.state.logo.opacity ?? 100}%`;
     }
 
-    // Gradient controls sync
+    // Gradient controls
     if (this.state.gradient) {
       this.toggleGradientActive.checked = this.state.gradient.active;
       this.gradientOpacitySlider.value = this.state.gradient.opacity;
@@ -351,7 +402,7 @@ class App {
       this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
     }
 
-    // Background Image adjustments sync
+    // Background Image
     this.bgBrightnessSlider.value = this.state.bgBrightness ?? 100;
     this.bgBrightnessValue.textContent = `${this.state.bgBrightness ?? 100}%`;
     this.bgContrastSlider.value = this.state.bgContrast ?? 100;
@@ -361,6 +412,33 @@ class App {
   }
 
   bindEvents() {
+    // Dock collapse toggle
+    this.dockHandleBar.addEventListener('click', (e) => {
+      this.toggleDock();
+    });
+
+    // Zoom buttons
+    this.btnZoomIn.addEventListener('click', () => {
+      this.applyZoom(this.zoom + 0.15);
+    });
+
+    this.btnZoomOut.addEventListener('click', () => {
+      this.applyZoom(this.zoom - 0.15);
+    });
+
+    this.btnZoomFit.addEventListener('click', () => {
+      this.applyZoom(1.0);
+    });
+
+    // Wheel Zoom (Ctrl/Cmd + Wheel)
+    window.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.08 : 0.08;
+        this.applyZoom(this.zoom + delta);
+      }
+    }, { passive: false });
+
     // Tab Switching
     this.dockTabs.addEventListener('click', (e) => {
       const btn = e.target.closest('.tab-btn');
@@ -391,11 +469,31 @@ class App {
         this.state.aspectRatio = chip.dataset.ratio;
         this.updateCanvasDimensions();
         this.render();
-        this.showToast(`Canvas switched to ${chip.dataset.ratio}`);
+        this.showToast(`Canvas: ${chip.dataset.ratio}`);
       });
     });
 
-    // Text Input & Sliders
+    // Fraunces SOFT Axis Slider (0 - 100)
+    this.softSlider.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        const val = Number(e.target.value);
+        this.selectedLayer.soft = val;
+        this.softValue.textContent = val;
+        this.render();
+      }
+    });
+
+    // Fraunces opsz Axis Slider (9 - 144)
+    this.opszSlider.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        const val = Number(e.target.value);
+        this.selectedLayer.fontOpsz = val;
+        this.opszValue.textContent = val;
+        this.render();
+      }
+    });
+
+    // Text Content & Typography Sliders
     this.textInput.addEventListener('input', (e) => {
       if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
         this.selectedLayer.text = e.target.value;
@@ -493,6 +591,8 @@ class App {
         text: 'New Fraunces Text',
         fontSize: 42,
         fontWeight: 600,
+        fontOpsz: 48,
+        soft: 0,
         lineHeight: 1.2,
         align: 'left',
         color: '#ffffff',
@@ -505,7 +605,7 @@ class App {
       this.state.textLayers.push(newLayer);
       this.selectTextLayer(newLayer);
       this.render();
-      this.showToast('Added new Fraunces text layer');
+      this.showToast('Added Fraunces text layer');
     });
 
     // Gradient Events
@@ -609,27 +709,33 @@ class App {
       this.render();
     });
 
+    // Logo corner positioning with 5% margin from edge
     this.logoPosBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const pos = btn.dataset.pos;
-        const margin = 100;
         const width = this.renderer.logicalWidth;
         const height = this.renderer.logicalHeight;
 
+        // 5% margin calculation from corner
+        const marginX = Math.round(width * 0.05);
+        const marginY = Math.round(height * 0.05);
+        const halfSize = this.state.logo.size / 2;
+
         if (pos === 'top-left') {
-          this.state.logo.x = margin;
-          this.state.logo.y = margin;
+          this.state.logo.x = marginX + halfSize;
+          this.state.logo.y = marginY + halfSize;
         } else if (pos === 'top-right') {
-          this.state.logo.x = width - margin;
-          this.state.logo.y = margin;
+          this.state.logo.x = width - marginX - halfSize;
+          this.state.logo.y = marginY + halfSize;
         } else if (pos === 'bottom-left') {
-          this.state.logo.x = margin;
-          this.state.logo.y = height - margin;
+          this.state.logo.x = marginX + halfSize;
+          this.state.logo.y = height - marginY - halfSize;
         } else if (pos === 'bottom-right') {
-          this.state.logo.x = width - margin;
-          this.state.logo.y = height - margin;
+          this.state.logo.x = width - marginX - halfSize;
+          this.state.logo.y = height - marginY - halfSize;
         }
         this.render();
+        this.showToast(`Logo aligned to ${pos.replace('-', ' ')} with 5% margin`);
       });
     });
 
@@ -641,7 +747,7 @@ class App {
         reader.onload = (ev) => {
           this.state.bgImage = ev.target.result;
           this.render();
-          this.showToast('Background image uploaded! 🖼️');
+          this.showToast('Background uploaded! 🖼️');
         };
         reader.readAsDataURL(file);
       }
@@ -653,7 +759,7 @@ class App {
         if (SAMPLE_BACKGROUNDS[key]) {
           this.state.bgImage = SAMPLE_BACKGROUNDS[key];
           this.render();
-          this.showToast(`Applied ${chip.textContent} background`);
+          this.showToast(`Applied ${chip.textContent}`);
         }
       });
     });
@@ -681,16 +787,16 @@ class App {
 
     // Reset Button
     this.btnReset.addEventListener('click', () => {
-      if (confirm('Reset canvas to default template?')) {
+      if (confirm('Reset canvas to default?')) {
         this.state = this.getDefaultState();
         this.selectTextLayer(this.state.textLayers[0]);
         this.updateCanvasDimensions();
         this.render();
-        this.showToast('Reset to default');
+        this.showToast('Reset complete');
       }
     });
 
-    // Export PNG Button
+    // Export PNG
     this.btnExport.addEventListener('click', async () => {
       this.btnExport.disabled = true;
       this.btnExport.style.opacity = '0.7';
@@ -699,7 +805,7 @@ class App {
       try {
         const success = await this.renderer.exportPNG(this.state, 'StudioPost');
         if (success) {
-          this.showToast('Saved high-resolution PNG! 🎉');
+          this.showToast('Exported crisp PNG! ✨');
         } else {
           this.showToast('Export failed. Please try again.');
         }
@@ -736,7 +842,6 @@ class App {
 
         this.syncControlsFromState();
         this.render();
-        this.showToast(`Applied ${preset.name} gradient`);
       });
 
       this.gradientPresetsGrid.appendChild(card);
@@ -768,14 +873,12 @@ class App {
     this.state.aspectRatio = tpl.aspectRatio || '1:1';
     this.state.bgImage = SAMPLE_BACKGROUNDS[tpl.bg] || this.state.bgImage;
 
-    // Aspect ratio button sync
     this.ratioChips.forEach(c => {
       const active = c.dataset.ratio === this.state.aspectRatio;
       c.classList.toggle('active', active);
       c.setAttribute('aria-checked', active ? 'true' : 'false');
     });
 
-    // Gradient
     const gradPreset = GRADIENT_PRESETS.find(p => p.id === tpl.gradientPreset) || GRADIENT_PRESETS[0];
     this.state.gradient = {
       active: true,
@@ -787,7 +890,6 @@ class App {
       stops: JSON.parse(JSON.stringify(gradPreset.stops))
     };
 
-    // Logo
     this.state.logo = {
       active: true,
       image: SAMPLE_LOGOS[tpl.logo] || SAMPLE_LOGOS['modern'],
@@ -799,9 +901,9 @@ class App {
       rotation: 0
     };
 
-    // Text Layers
     this.state.textLayers = tpl.textLayers.map((l, idx) => ({
       ...l,
+      soft: l.soft ?? 0,
       id: `text-${idx + 1}`
     }));
 
@@ -809,7 +911,7 @@ class App {
     this.updateCanvasDimensions();
     this.render();
     this.switchTab('text');
-    this.showToast(`Loaded "${tpl.name}" template`);
+    this.showToast(`Loaded "${tpl.name}"`);
   }
 
   updateLayersPanel() {
@@ -836,7 +938,7 @@ class App {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.delete-btn')) {
           if (this.state.textLayers.length <= 1) {
-            this.showToast('Post must have at least one text layer');
+            this.showToast('At least one text layer is required');
             return;
           }
           this.state.textLayers.splice(idx, 1);
@@ -862,7 +964,7 @@ class App {
       item.innerHTML = `
         <div class="layer-info">
           <span class="layer-icon">🏷️</span>
-          <span class="layer-name">Brand Logo Layer</span>
+          <span class="layer-name">Brand Logo</span>
         </div>
       `;
 
@@ -882,11 +984,11 @@ class App {
     clearTimeout(this.toastTimer);
     this.toastTimer = setTimeout(() => {
       this.toastEl.classList.remove('show');
-    }, 2500);
+    }, 2200);
   }
 }
 
-// Instantiate on DOMContentLoaded
+// Instantiate on DOM load
 document.addEventListener('DOMContentLoaded', () => {
   new App();
 });

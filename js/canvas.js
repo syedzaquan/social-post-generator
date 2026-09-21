@@ -104,7 +104,13 @@ export class CanvasRenderer {
     const style = layer.italic ? 'italic' : 'normal';
     const weight = layer.fontWeight || 700;
     const fontSize = layer.fontSize || 54;
+    const soft = layer.soft ?? 0;
+    const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
+
     ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
+    if ('fontVariationSettings' in ctx) {
+      ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}`;
+    }
 
     const maxWidth = this.logicalWidth * 0.84;
     const lines = this.wrapText(ctx, layer.text, maxWidth);
@@ -292,8 +298,13 @@ export class CanvasRenderer {
         const weight = layer.fontWeight || 700;
         const fontSize = layer.fontSize || 54;
         const color = layer.color || '#ffffff';
+        const soft = layer.soft ?? 0;
+        const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
 
         ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
+        if ('fontVariationSettings' in ctx) {
+          ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}`;
+        }
         ctx.textBaseline = 'top';
         ctx.textAlign = layer.align || 'left';
 
@@ -302,8 +313,8 @@ export class CanvasRenderer {
         // Highlight Pill Badge background
         if (layer.isBadge) {
           ctx.save();
-          ctx.fillStyle = 'rgba(99, 102, 241, 0.28)';
-          ctx.strokeStyle = 'rgba(165, 180, 252, 0.4)';
+          ctx.fillStyle = 'rgba(229, 9, 20, 0.28)';
+          ctx.strokeStyle = 'rgba(248, 113, 113, 0.5)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.roundRect(bounds.left, bounds.top, bounds.width, bounds.height, 8);

@@ -123,13 +123,14 @@ export const STARTER_TEMPLATES = [
     gradientPreset: 'bottom-fade',
     gradientOpacity: 0.85,
     logo: 'modern',
-    logoPos: { x: 90, y: 90, size: 85 },
+    logoPos: { x: Math.round(1080 * 0.05) + 42, y: Math.round(1080 * 0.05) + 42, size: 85 },
     textLayers: [
       {
         text: 'True design is making the complex feel quiet, intentional & timeless.',
         fontSize: 58,
         fontWeight: 700,
         fontOpsz: 72,
+        soft: 0,
         lineHeight: 1.18,
         align: 'left',
         color: '#ffffff',
