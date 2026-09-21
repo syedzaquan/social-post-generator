@@ -164,7 +164,7 @@ class App {
           fontWeight: 400, // DEFAULT: 400
           fontOpsz: 72,
           soft: 50, // DEFAULT: SOFT 50
-          letterSpacing: 0,
+          letterSpacing: 0, 
           lineHeight: 1.16,
           align: 'left',
           color: '#ffffff',
