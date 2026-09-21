@@ -79,6 +79,14 @@ class App {
     this.gradStartAlpha = document.getElementById('gradStartAlpha');
     this.gradEndColor = document.getElementById('gradEndColor');
     this.gradEndAlpha = document.getElementById('gradEndAlpha');
+    this.gradientHeightSlider = document.getElementById('gradientHeightSlider');
+    this.gradientHeightValue = document.getElementById('gradientHeightValue');
+
+    // Snap Guides Elements
+    this.snapGuideX = document.getElementById('snapGuideX');
+    this.snapGuideY = document.getElementById('snapGuideY');
+    this.snapBadgeX = document.getElementById('snapBadgeX');
+    this.snapBadgeY = document.getElementById('snapBadgeY');
 
     // Logo Controls
     this.toggleLogoActive = document.getElementById('toggleLogoActive');
@@ -117,9 +125,13 @@ class App {
       this.selectionBox,
       this.selectionTag,
       {
+        snapGuideX: this.snapGuideX,
+        snapGuideY: this.snapGuideY,
+        snapBadgeX: this.snapBadgeX,
+        snapBadgeY: this.snapBadgeY,
         onLayerChange: () => this.onLayerModifiedByGesture(),
-        onSelectLayer: (x, y) => this.hitTestLayer(x, y),
-        onCanvasTransform: (zoom, panX, panY) => this.onCanvasTransform(zoom, panX, panY)
+        onSelectLayer: (x, y, targetEl) => this.hitTestLayer(x, y, targetEl),
+        onCanvasTransform: (zoom, panX, panY, animate) => this.onCanvasTransform(zoom, panX, panY, animate)
       }
     );
 
@@ -140,6 +152,7 @@ class App {
         type: 'linear',
         angle: 180,
         opacity: 85,
+        height: 100,
         blendMode: 'normal',
         stops: [
           { color: '#000000', alpha: 0, position: 0.2 },
@@ -239,10 +252,10 @@ class App {
     this.touchControls.updateSelectionBounds();
   }
 
-  onCanvasTransform(zoom, panX, panY) {
-    this.canvasZoomContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-    this.btnZoomFit.textContent = zoom === 1.0 ? 'Fit' : `${Math.round(zoom * 100)}%`;
-    this.updateDOMTextOverlay();
+  onCanvasTransform(zoom, panX, panY, animate = false) {
+    this.canvasZoomContainer.style.transition = animate ? 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)' : 'none';
+    this.canvasZoomContainer.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
+    this.btnZoomFit.textContent = Math.abs(zoom - 1.0) < 0.01 ? 'Fit' : `${Math.round(zoom * 100)}%`;
   }
 
   async render() {
@@ -256,8 +269,8 @@ class App {
   updateDOMTextOverlay() {
     this.textOverlayStage.innerHTML = '';
 
-    const rect = this.previewCanvas.getBoundingClientRect();
-    const scale = rect.width / this.renderer.logicalWidth;
+    const stageWidth = this.canvasStage.offsetWidth || parseFloat(this.canvasStage.style.width) || this.renderer.logicalWidth;
+    const scale = stageWidth / this.renderer.logicalWidth;
 
     this.state.textLayers.forEach(layer => {
       if (!layer.text || layer.visible === false) return;
@@ -327,7 +340,20 @@ class App {
   }
 
   // Canvas Hit testing on tap
-  hitTestLayer(canvasX, canvasY) {
+  hitTestLayer(canvasX, canvasY, targetEl = null) {
+    if (targetEl) {
+      const textDom = targetEl.closest('.dom-text-layer');
+      if (textDom && textDom.dataset.id) {
+        const layer = this.state.textLayers.find(l => l.id === textDom.dataset.id);
+        if (layer) {
+          this.selectTextLayer(layer);
+          this.switchTab('text');
+          this.render();
+          return { type: 'text', layer };
+        }
+      }
+    }
+
     // 1. Text layers
     for (let i = this.state.textLayers.length - 1; i >= 0; i--) {
       const layer = this.state.textLayers[i];
@@ -466,6 +492,11 @@ class App {
       this.gradientAngleSlider.value = this.state.gradient.angle;
       this.gradientAngleValue.textContent = `${this.state.gradient.angle}°`;
       this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
+      const gradHeight = this.state.gradient.height ?? 100;
+      if (this.gradientHeightSlider) {
+        this.gradientHeightSlider.value = gradHeight;
+        this.gradientHeightValue.textContent = `${gradHeight}%`;
+      }
     }
 
     // Background Image adjustments
@@ -484,15 +515,15 @@ class App {
 
     // Zoom buttons
     this.btnZoomIn.addEventListener('click', () => {
-      this.touchControls.setZoomAndPan(this.touchControls.zoom + 0.15, this.touchControls.panX, this.touchControls.panY);
+      this.touchControls.setZoomAndPan(this.touchControls.zoom + 0.15, this.touchControls.panX, this.touchControls.panY, true);
     });
 
     this.btnZoomOut.addEventListener('click', () => {
-      this.touchControls.setZoomAndPan(this.touchControls.zoom - 0.15, this.touchControls.panX, this.touchControls.panY);
+      this.touchControls.setZoomAndPan(this.touchControls.zoom - 0.15, this.touchControls.panX, this.touchControls.panY, true);
     });
 
     this.btnZoomFit.addEventListener('click', () => {
-      this.touchControls.resetView();
+      this.touchControls.resetView(true);
     });
 
     // Wheel Zoom on Desktop (Ctrl/Cmd + Wheel)
@@ -500,7 +531,7 @@ class App {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -0.08 : 0.08;
-        this.touchControls.setZoomAndPan(this.touchControls.zoom + delta, this.touchControls.panX, this.touchControls.panY);
+        this.touchControls.setZoomAndPan(this.touchControls.zoom + delta, this.touchControls.panX, this.touchControls.panY, false);
       }
     }, { passive: false });
 
@@ -533,6 +564,7 @@ class App {
 
         this.state.aspectRatio = chip.dataset.ratio;
         this.updateCanvasDimensions();
+        this.touchControls.resetView(false);
         this.render();
         this.showToast(`Canvas: ${chip.dataset.ratio}`);
       });
@@ -703,6 +735,15 @@ class App {
       this.gradientAngleValue.textContent = `${val}°`;
       this.render();
     });
+
+    if (this.gradientHeightSlider) {
+      this.gradientHeightSlider.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.state.gradient.height = val;
+        this.gradientHeightValue.textContent = `${val}%`;
+        this.render();
+      });
+    }
 
     this.gradientBlendMode.addEventListener('change', (e) => {
       this.state.gradient.blendMode = e.target.value;
@@ -915,6 +956,7 @@ class App {
         this.state.gradient.opacity = Math.round(preset.opacity * 100);
         this.state.gradient.blendMode = preset.blendMode;
         this.state.gradient.stops = JSON.parse(JSON.stringify(preset.stops));
+        this.state.gradient.height = preset.height ?? this.state.gradient.height ?? 100;
 
         this.syncControlsFromState();
         this.render();
@@ -962,6 +1004,7 @@ class App {
       type: gradPreset.type,
       angle: gradPreset.angle,
       opacity: Math.round((tpl.gradientOpacity ?? gradPreset.opacity) * 100),
+      height: tpl.gradientHeight ?? gradPreset.height ?? 100,
       blendMode: gradPreset.blendMode,
       stops: JSON.parse(JSON.stringify(gradPreset.stops))
     };

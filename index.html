@@ -80,6 +80,14 @@
               </div>
               <div class="selection-tag" id="selectionTag">Text Layer</div>
             </div>
+
+            <!-- Magnetic Snap Guidelines -->
+            <div id="snapGuideX" class="snap-guide snap-guide-x hidden">
+              <span class="snap-badge" id="snapBadgeX">Center</span>
+            </div>
+            <div id="snapGuideY" class="snap-guide snap-guide-y hidden">
+              <span class="snap-badge" id="snapBadgeY">Center</span>
+            </div>
           </div>
         </div>
       </div>
@@ -272,6 +280,15 @@
               </div>
               <input type="range" id="gradientAngleSlider" min="0" max="360" value="180" class="styled-slider">
             </div>
+          </div>
+
+          <!-- Gradient Height / Coverage Slider -->
+          <div class="panel-section">
+            <div class="slider-header">
+              <span class="control-name">Gradient Height / Coverage</span>
+              <span class="control-value" id="gradientHeightValue">100%</span>
+            </div>
+            <input type="range" id="gradientHeightSlider" min="15" max="100" value="100" class="styled-slider">
           </div>
 
           <div class="panel-section">

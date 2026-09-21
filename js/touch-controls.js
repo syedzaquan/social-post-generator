@@ -15,6 +15,12 @@ export class TouchControls {
     this.onSelectLayer = options.onSelectLayer || (() => null);
     this.onCanvasTransform = options.onCanvasTransform || (() => {});
 
+    // Snap Guides DOM elements
+    this.snapGuideX = options.snapGuideX || null;
+    this.snapGuideY = options.snapGuideY || null;
+    this.snapBadgeX = options.snapBadgeX || null;
+    this.snapBadgeY = options.snapBadgeY || null;
+
     // Layer state
     this.activeLayer = null;
     this.activeType = null; // 'text' | 'logo'
@@ -35,6 +41,7 @@ export class TouchControls {
     this.initialZoom = 1.0;
     this.initialPan = { x: 0, y: 0 };
     this.panStartClient = { x: 0, y: 0 };
+    this.rafId = null;
 
     this.initEvents();
   }
@@ -42,6 +49,7 @@ export class TouchControls {
   // Convert client viewport coordinates to logical canvas coordinates (e.g. 1080x...)
   clientToCanvas(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { x: 0, y: 0 };
     const scaleX = this.canvas.width / rect.width;
     const scaleY = this.canvas.height / rect.height;
 
@@ -51,11 +59,12 @@ export class TouchControls {
     };
   }
 
-  // Convert logical canvas coordinates to screen CSS coordinates relative to stage
+  // Convert logical canvas coordinates to Stage CSS pixels (relative to this.stage)
   canvasToClient(canvasX, canvasY, width, height) {
-    const rect = this.canvas.getBoundingClientRect();
-    const scaleX = rect.width / this.canvas.width;
-    const scaleY = rect.height / this.canvas.height;
+    const stageW = this.stage.offsetWidth || parseFloat(this.stage.style.width) || this.canvas.width;
+    const stageH = this.stage.offsetHeight || parseFloat(this.stage.style.height) || this.canvas.height;
+    const scaleX = stageW / this.canvas.width;
+    const scaleY = stageH / this.canvas.height;
 
     return {
       left: canvasX * scaleX,
@@ -83,16 +92,32 @@ export class TouchControls {
     });
   }
 
-  setZoomAndPan(zoom, panX = 0, panY = 0) {
+  scheduleTransform(animate = false) {
+    if (animate) {
+      if (this.rafId) {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = null;
+      }
+      this.onCanvasTransform(this.zoom, this.panX, this.panY, true);
+      return;
+    }
+    if (!this.rafId) {
+      this.rafId = requestAnimationFrame(() => {
+        this.onCanvasTransform(this.zoom, this.panX, this.panY, false);
+        this.rafId = null;
+      });
+    }
+  }
+
+  setZoomAndPan(zoom, panX = 0, panY = 0, animate = false) {
     this.zoom = Math.max(0.35, Math.min(3.0, zoom));
     this.panX = panX;
     this.panY = panY;
-    this.onCanvasTransform(this.zoom, this.panX, this.panY);
-    this.updateSelectionBounds();
+    this.scheduleTransform(animate);
   }
 
-  resetView() {
-    this.setZoomAndPan(1.0, 0, 0);
+  resetView(animate = true) {
+    this.setZoomAndPan(1.0, 0, 0, animate);
   }
 
   select(type, layer, bounds) {
@@ -125,6 +150,12 @@ export class TouchControls {
     this.selectionBox.style.top = `${screenPos.top}px`;
     this.selectionBox.style.width = `${screenPos.width}px`;
     this.selectionBox.style.height = `${screenPos.height}px`;
+
+    if (this.activeLayer.rotation) {
+      this.selectionBox.style.transform = `rotate(${this.activeLayer.rotation}deg)`;
+    } else {
+      this.selectionBox.style.transform = 'none';
+    }
   }
 
   // ==========================================
@@ -184,8 +215,7 @@ export class TouchControls {
         this.panX = Math.round(this.initialPan.x + deltaX);
         this.panY = Math.round(this.initialPan.y + deltaY);
 
-        this.onCanvasTransform(this.zoom, this.panX, this.panY);
-        this.updateSelectionBounds();
+        this.scheduleTransform(false);
       }
       return;
     }
@@ -255,7 +285,7 @@ export class TouchControls {
 
     // 3. Click on stage/canvas elements (Hit-test layer)
     if (isStageOrCanvas) {
-      const hit = this.onSelectLayer(coords.x, coords.y);
+      const hit = this.onSelectLayer(coords.x, coords.y, targetEl);
       if (hit) {
         this.isDragging = true;
         this.dragStart = coords;
@@ -277,8 +307,7 @@ export class TouchControls {
       const deltaY = clientY - this.panStartClient.y;
       this.panX = Math.round(this.initialPan.x + deltaX);
       this.panY = Math.round(this.initialPan.y + deltaY);
-      this.onCanvasTransform(this.zoom, this.panX, this.panY);
-      this.updateSelectionBounds();
+      this.scheduleTransform(false);
       return;
     }
 
@@ -290,8 +319,13 @@ export class TouchControls {
 
     // Moving layer
     if (this.isDragging) {
-      this.activeLayer.x = Math.round(this.initialLayerState.x + deltaX);
-      this.activeLayer.y = Math.round(this.initialLayerState.y + deltaY);
+      const rawX = Math.round(this.initialLayerState.x + deltaX);
+      const rawY = Math.round(this.initialLayerState.y + deltaY);
+
+      const snapped = this.calculateSnap(rawX, rawY);
+      this.activeLayer.x = snapped.x;
+      this.activeLayer.y = snapped.y;
+
       this.onLayerChange();
       this.updateSelectionBounds();
     }
@@ -321,11 +355,130 @@ export class TouchControls {
     }
   }
 
+  hideSnapGuides() {
+    if (this.snapGuideX) this.snapGuideX.classList.add('hidden');
+    if (this.snapGuideY) this.snapGuideY.classList.add('hidden');
+  }
+
+  updateSnapGuides(guideX, guideY) {
+    if (this.snapGuideX) {
+      if (guideX) {
+        this.snapGuideX.style.left = `${guideX.percent}%`;
+        if (this.snapBadgeX) this.snapBadgeX.textContent = guideX.label;
+        this.snapGuideX.classList.remove('hidden');
+      } else {
+        this.snapGuideX.classList.add('hidden');
+      }
+    }
+
+    if (this.snapGuideY) {
+      if (guideY) {
+        this.snapGuideY.style.top = `${guideY.percent}%`;
+        if (this.snapBadgeY) this.snapBadgeY.textContent = guideY.label;
+        this.snapGuideY.classList.remove('hidden');
+      } else {
+        this.snapGuideY.classList.add('hidden');
+      }
+    }
+  }
+
+  calculateSnap(nextX, nextY) {
+    const canvasW = this.canvas.width;
+    const canvasH = this.canvas.height;
+    const centerX = canvasW / 2;
+    const centerY = canvasH / 2;
+    const margin = Math.round(canvasW * 0.05); // 5% safe margin (54px)
+    const threshold = 18; // Snap magnetic radius in canvas pixels
+
+    let snappedX = nextX;
+    let snappedY = nextY;
+    let guideX = null;
+    let guideY = null;
+
+    // Calculate layer bounds
+    let boundsLeft, boundsRight, boundsTop, boundsBottom, itemCenterX, itemCenterY;
+
+    if (this.activeType === 'logo') {
+      const size = this.activeLayer.size || 120;
+      itemCenterX = nextX;
+      itemCenterY = nextY;
+      boundsLeft = nextX - size / 2;
+      boundsRight = nextX + size / 2;
+      boundsTop = nextY - size / 2;
+      boundsBottom = nextY + size / 2;
+    } else if (this.activeType === 'text') {
+      const b = this.cachedBounds;
+      const w = b ? b.width : 200;
+      const h = b ? b.height : 60;
+      const maxW = b ? b.maxLineWidth : w;
+      const padding = this.activeLayer.isBadge ? 18 : 6;
+
+      if (this.activeLayer.align === 'center') {
+        itemCenterX = nextX;
+        boundsLeft = nextX - maxW / 2 - padding;
+        boundsRight = nextX + maxW / 2 + padding;
+      } else if (this.activeLayer.align === 'right') {
+        itemCenterX = nextX - maxW / 2;
+        boundsLeft = nextX - maxW - padding;
+        boundsRight = nextX + padding;
+      } else {
+        itemCenterX = nextX + maxW / 2;
+        boundsLeft = nextX - padding;
+        boundsRight = nextX + maxW + padding;
+      }
+
+      boundsTop = nextY - padding;
+      boundsBottom = nextY + h - padding;
+      itemCenterY = nextY + h / 2 - padding;
+    }
+
+    // Horizontal snapping: Center -> Safe Margin -> Canvas Edge
+    if (Math.abs(itemCenterX - centerX) <= threshold) {
+      snappedX += (centerX - itemCenterX);
+      guideX = { percent: 50, label: 'Center' };
+    } else if (Math.abs(boundsLeft - margin) <= threshold) {
+      snappedX += (margin - boundsLeft);
+      guideX = { percent: (margin / canvasW) * 100, label: 'Safe Margin' };
+    } else if (Math.abs(boundsRight - (canvasW - margin)) <= threshold) {
+      snappedX += ((canvasW - margin) - boundsRight);
+      guideX = { percent: ((canvasW - margin) / canvasW) * 100, label: 'Safe Margin' };
+    } else if (Math.abs(boundsLeft - 0) <= threshold) {
+      snappedX += (0 - boundsLeft);
+      guideX = { percent: 0, label: 'Edge' };
+    } else if (Math.abs(boundsRight - canvasW) <= threshold) {
+      snappedX += (canvasW - boundsRight);
+      guideX = { percent: 100, label: 'Edge' };
+    }
+
+    // Vertical snapping: Center -> Safe Margin -> Canvas Edge
+    if (Math.abs(itemCenterY - centerY) <= threshold) {
+      snappedY += (centerY - itemCenterY);
+      guideY = { percent: 50, label: 'Center' };
+    } else if (Math.abs(boundsTop - margin) <= threshold) {
+      snappedY += (margin - boundsTop);
+      guideY = { percent: (margin / canvasH) * 100, label: 'Safe Margin' };
+    } else if (Math.abs(boundsBottom - (canvasH - margin)) <= threshold) {
+      snappedY += ((canvasH - margin) - boundsBottom);
+      guideY = { percent: ((canvasH - margin) / canvasH) * 100, label: 'Safe Margin' };
+    } else if (Math.abs(boundsTop - 0) <= threshold) {
+      snappedY += (0 - boundsTop);
+      guideY = { percent: 0, label: 'Edge' };
+    } else if (Math.abs(boundsBottom - canvasH) <= threshold) {
+      snappedY += (canvasH - boundsBottom);
+      guideY = { percent: 100, label: 'Edge' };
+    }
+
+    this.updateSnapGuides(guideX, guideY);
+
+    return { x: Math.round(snappedX), y: Math.round(snappedY) };
+  }
+
   handlePointerUp() {
     this.isDragging = false;
     this.isResizing = false;
     this.isPanningCanvas = false;
     this.isPinchingCanvas = false;
     this.activeHandle = null;
+    this.hideSnapGuides();
   }
 }
