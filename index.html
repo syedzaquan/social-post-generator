@@ -63,6 +63,9 @@
           <!-- Live Preview Canvas -->
           <canvas id="previewCanvas"></canvas>
           
+          <!-- Live DOM Text Overlay Stage (Renders Fraunces variable font with full SOFT, opsz, wght, and letter-spacing) -->
+          <div id="textOverlayStage" class="text-overlay-stage"></div>
+          
           <!-- Direct touch overlay (selection handles & bounds) -->
           <div id="interactiveOverlay" class="interactive-overlay">
             <div id="selectionBox" class="selection-box hidden">
@@ -81,6 +84,12 @@
         </div>
       </div>
     </main>
+
+    <!-- Floating Expand Pill Button (Visible when dock is collapsed so it is never hidden behind mobile address bar) -->
+    <button id="btnExpandDock" class="floating-expand-pill hidden" aria-label="Open Properties Dock">
+      <span class="expand-pill-icon">✍️</span>
+      <span class="expand-pill-text">Edit Tools ▲</span>
+    </button>
 
     <!-- Floating Overlay Controls Dock (Collapsible, Overlays the Fullscreen Canvas) -->
     <section class="floating-controls-dock" id="controlsDock">
@@ -140,9 +149,9 @@
             <div class="panel-col">
               <div class="slider-header">
                 <span class="control-name">SOFT (Softness)</span>
-                <span class="control-value" id="softValue">0</span>
+                <span class="control-value" id="softValue">50</span>
               </div>
-              <input type="range" id="softSlider" min="0" max="100" step="1" value="0" class="styled-slider">
+              <input type="range" id="softSlider" min="0" max="100" step="1" value="50" class="styled-slider">
             </div>
 
             <!-- Optical Size (opsz 9 - 144) -->
@@ -159,23 +168,23 @@
           <div class="panel-section">
             <div class="slider-header">
               <span class="control-name">Font Weight (wght)</span>
-              <span class="control-value" id="fontWeightValue">700</span>
+              <span class="control-value" id="fontWeightValue">400</span>
             </div>
-            <input type="range" id="fontWeightSlider" min="100" max="900" step="50" value="700" class="styled-slider">
+            <input type="range" id="fontWeightSlider" min="100" max="900" step="50" value="400" class="styled-slider">
             <div class="weight-presets">
               <button class="preset-pill" data-weight="300">Light</button>
-              <button class="preset-pill" data-weight="400">Regular</button>
+              <button class="preset-pill active" data-weight="400">Regular</button>
               <button class="preset-pill" data-weight="600">Semi</button>
-              <button class="preset-pill active" data-weight="700">Bold</button>
+              <button class="preset-pill" data-weight="700">Bold</button>
               <button class="preset-pill" data-weight="900">Black</button>
             </div>
           </div>
 
-          <!-- Size & Line Spacing -->
-          <div class="panel-grid-2">
+          <!-- Size, Line Spacing & Letter Spacing -->
+          <div class="panel-grid-3">
             <div class="panel-col">
               <div class="slider-header">
-                <span class="control-name">Font Size</span>
+                <span class="control-name">Size</span>
                 <span class="control-value" id="fontSizeValue">56px</span>
               </div>
               <input type="range" id="fontSizeSlider" min="16" max="140" step="1" value="56" class="styled-slider">
@@ -187,6 +196,14 @@
                 <span class="control-value" id="lineHeightValue">1.15</span>
               </div>
               <input type="range" id="lineHeightSlider" min="0.8" max="2.0" step="0.05" value="1.15" class="styled-slider">
+            </div>
+
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Letter Spacing</span>
+                <span class="control-value" id="letterSpacingValue">0px</span>
+              </div>
+              <input type="range" id="letterSpacingSlider" min="-3" max="25" step="0.5" value="0" class="styled-slider">
             </div>
           </div>
 
@@ -207,10 +224,10 @@
               </div>
 
               <!-- Italic & Shadow Toggles -->
-              <button id="btnToggleItalic" class="toggle-icon-btn" title="Toggle Italic">
+              <button id="btnToggleItalic" class="toggle-icon-btn active" title="Toggle Italic">
                 <em>I</em>
               </button>
-              <button id="btnToggleShadow" class="toggle-icon-btn active" title="Text Shadow / Readability Glow">
+              <button id="btnToggleShadow" class="toggle-icon-btn" title="Text Shadow / Readability Glow">
                 <span>✦ Glow</span>
               </button>
               <button id="btnToggleBadge" class="toggle-icon-btn" title="Highlight Badge Pill">

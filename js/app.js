@@ -1,6 +1,7 @@
 /* ==========================================================================
    StudioPost — Application Controller
-   Full-screen canvas with overlay controls, Fraunces SOFT axis & zoom
+   Full-screen canvas with pinch zoom, pan, floating tools, Fraunces SOFT,
+   optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
 import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js';
@@ -14,37 +15,36 @@ import {
 
 class App {
   constructor() {
-    // Canvas & Stage Elements
+    // Canvas & Viewport Elements
     this.previewCanvas = document.getElementById('previewCanvas');
     this.exportCanvas = document.getElementById('exportCanvas');
     this.viewportArea = document.getElementById('viewportArea');
     this.canvasZoomContainer = document.getElementById('canvasZoomContainer');
     this.canvasStage = document.getElementById('canvasStage');
+    this.textOverlayStage = document.getElementById('textOverlayStage');
     this.selectionBox = document.getElementById('selectionBox');
     this.selectionTag = document.getElementById('selectionTag');
     this.toastEl = document.getElementById('toast');
 
-    // Controls Dock & Collapse Toggle
+    // Controls Dock & Expand Pill
     this.controlsDock = document.getElementById('controlsDock');
     this.dockHandleBar = document.getElementById('dockHandleBar');
     this.btnToggleDock = document.getElementById('btnToggleDock');
+    this.btnExpandDock = document.getElementById('btnExpandDock');
     this.dockToggleIcon = document.getElementById('dockToggleIcon');
     this.dockTabs = document.getElementById('dockTabs');
     this.tabBtns = document.querySelectorAll('.tab-btn');
     this.panels = document.querySelectorAll('.panel');
 
-    // Top Bar Controls: Export, Reset & Ratio
+    // Top Bar Controls: Export, Reset, Ratio & Zoom
     this.btnExport = document.getElementById('btnExport');
     this.btnReset = document.getElementById('btnReset');
     this.ratioChips = document.querySelectorAll('.format-chips-bar .chip');
-
-    // Zoom Controls
     this.btnZoomIn = document.getElementById('btnZoomIn');
     this.btnZoomOut = document.getElementById('btnZoomOut');
     this.btnZoomFit = document.getElementById('btnZoomFit');
-    this.zoom = 1.0;
 
-    // Controls: Text & Fraunces Axes
+    // Text & Typography Controls
     this.textInput = document.getElementById('textInput');
     this.softSlider = document.getElementById('softSlider');
     this.softValue = document.getElementById('softValue');
@@ -56,6 +56,8 @@ class App {
     this.fontSizeValue = document.getElementById('fontSizeValue');
     this.lineHeightSlider = document.getElementById('lineHeightSlider');
     this.lineHeightValue = document.getElementById('lineHeightValue');
+    this.letterSpacingSlider = document.getElementById('letterSpacingSlider');
+    this.letterSpacingValue = document.getElementById('letterSpacingValue');
     this.textAlignBtns = document.querySelectorAll('#textAlignControl .segment-btn');
     this.btnToggleItalic = document.getElementById('btnToggleItalic');
     this.btnToggleShadow = document.getElementById('btnToggleShadow');
@@ -65,7 +67,7 @@ class App {
     this.btnAddTextLayer = document.getElementById('btnAddTextLayer');
     this.weightPresetBtns = document.querySelectorAll('.weight-presets .preset-pill');
 
-    // Controls: Gradient
+    // Gradient Controls
     this.toggleGradientActive = document.getElementById('toggleGradientActive');
     this.gradientPresetsGrid = document.getElementById('gradientPresetsGrid');
     this.gradientOpacitySlider = document.getElementById('gradientOpacitySlider');
@@ -78,7 +80,7 @@ class App {
     this.gradEndColor = document.getElementById('gradEndColor');
     this.gradEndAlpha = document.getElementById('gradEndAlpha');
 
-    // Controls: Logo
+    // Logo Controls
     this.toggleLogoActive = document.getElementById('toggleLogoActive');
     this.logoFileInput = document.getElementById('logoFileInput');
     this.logoSizeSlider = document.getElementById('logoSizeSlider');
@@ -89,7 +91,7 @@ class App {
     this.logoOpacityValue = document.getElementById('logoOpacityValue');
     this.logoPosBtns = document.querySelectorAll('.pos-btn');
 
-    // Controls: Image (Background)
+    // Background Image Controls
     this.bgFileInput = document.getElementById('bgFileInput');
     this.bgBrightnessSlider = document.getElementById('bgBrightnessSlider');
     this.bgBrightnessValue = document.getElementById('bgBrightnessValue');
@@ -98,7 +100,7 @@ class App {
     this.bgBlurSlider = document.getElementById('bgBlurSlider');
     this.bgBlurValue = document.getElementById('bgBlurValue');
 
-    // Controls: Templates & Layers
+    // Templates & Layers List
     this.templatesGrid = document.getElementById('templatesGrid');
     this.layersList = document.getElementById('layersList');
 
@@ -109,12 +111,16 @@ class App {
     // Services
     this.renderer = new CanvasRenderer(this.previewCanvas, this.exportCanvas);
     this.touchControls = new TouchControls(
+      this.viewportArea,
       this.canvasStage,
       this.previewCanvas,
       this.selectionBox,
       this.selectionTag,
-      () => this.onLayerModifiedByGesture(),
-      (x, y) => this.hitTestLayer(x, y)
+      {
+        onLayerChange: () => this.onLayerModifiedByGesture(),
+        onSelectLayer: (x, y) => this.hitTestLayer(x, y),
+        onCanvasTransform: (zoom, panX, panY) => this.onCanvasTransform(zoom, panX, panY)
+      }
     );
 
     this.init();
@@ -143,7 +149,7 @@ class App {
       logo: {
         active: true,
         image: SAMPLE_LOGOS['modern'],
-        x: Math.round(1080 * 0.05) + 45, // 5% corner padding
+        x: Math.round(1080 * 0.05) + 45, // 5% corner margin
         y: Math.round(1080 * 0.05) + 45,
         size: 90,
         radius: 0,
@@ -155,14 +161,15 @@ class App {
           id: 'text-1',
           text: 'Design with intention, craft with soul.',
           fontSize: 58,
-          fontWeight: 700,
+          fontWeight: 400, // DEFAULT: 400
           fontOpsz: 72,
-          soft: 0, // Fraunces SOFT axis
+          soft: 50, // DEFAULT: SOFT 50
+          letterSpacing: 0,
           lineHeight: 1.16,
           align: 'left',
           color: '#ffffff',
-          italic: false,
-          hasShadow: true,
+          italic: true, // DEFAULT: ITALIC
+          hasShadow: false, // DEFAULT: NO GLOW
           isBadge: false,
           x: 90,
           y: 540
@@ -171,13 +178,14 @@ class App {
           id: 'text-2',
           text: 'STUDIO COLLECTION — 2026',
           fontSize: 16,
-          fontWeight: 600,
+          fontWeight: 400, // DEFAULT: 400
           fontOpsz: 24,
-          soft: 0,
+          soft: 50,
+          letterSpacing: 1.5,
           lineHeight: 1.2,
           align: 'left',
           color: '#fecaca',
-          italic: false,
+          italic: true, // DEFAULT: ITALIC
           hasShadow: false,
           isBadge: true,
           x: 90,
@@ -192,7 +200,7 @@ class App {
     this.populateTemplates();
     this.bindEvents();
     
-    // Default selected text layer
+    // Select first text layer by default
     this.selectTextLayer(this.state.textLayers[0]);
 
     this.updateCanvasDimensions();
@@ -204,7 +212,6 @@ class App {
     });
   }
 
-  // Maximize the canvas size across viewport
   updateCanvasDimensions() {
     const ratioData = ASPECT_RATIOS[this.state.aspectRatio];
     this.renderer.setAspectRatio(this.state.aspectRatio);
@@ -212,7 +219,6 @@ class App {
     const winW = window.innerWidth;
     const winH = window.innerHeight;
 
-    // Provide maximum space while leaving comfort for floating bars
     const maxAvailableWidth = winW > 960 ? winW - 420 : winW - 24;
     const maxAvailableHeight = winH - 90;
 
@@ -230,25 +236,79 @@ class App {
     this.canvasStage.style.width = `${Math.round(stageWidth)}px`;
     this.canvasStage.style.height = `${Math.round(stageHeight)}px`;
 
-    this.applyZoom(this.zoom);
-
-    if (this.selectedLayer) {
-      setTimeout(() => this.updateSelectionBox(), 20);
-    }
+    this.touchControls.updateSelectionBounds();
   }
 
-  // Zoom management
-  applyZoom(level) {
-    this.zoom = Math.max(0.35, Math.min(2.5, level));
-    this.canvasZoomContainer.style.transform = `scale(${this.zoom})`;
-    this.btnZoomFit.textContent = this.zoom === 1.0 ? 'Fit' : `${Math.round(this.zoom * 100)}%`;
-    this.updateSelectionBox();
+  onCanvasTransform(zoom, panX, panY) {
+    this.canvasZoomContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    this.btnZoomFit.textContent = zoom === 1.0 ? 'Fit' : `${Math.round(zoom * 100)}%`;
+    this.updateDOMTextOverlay();
   }
 
   async render() {
     await this.renderer.render(this.state, 'preview');
+    this.updateDOMTextOverlay();
     this.updateSelectionBox();
     this.updateLayersPanel();
+  }
+
+  // Live DOM Text Overlay — renders true Fraunces variable font with full SOFT, opsz, wght & letter-spacing
+  updateDOMTextOverlay() {
+    this.textOverlayStage.innerHTML = '';
+
+    const rect = this.previewCanvas.getBoundingClientRect();
+    const scale = rect.width / this.renderer.logicalWidth;
+
+    this.state.textLayers.forEach(layer => {
+      if (!layer.text || layer.visible === false) return;
+
+      const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, layer);
+      const screenPos = this.touchControls.canvasToClient(bounds.left, bounds.top, bounds.width, bounds.height);
+
+      const div = document.createElement('div');
+      div.className = 'dom-text-layer';
+      div.dataset.id = layer.id;
+
+      div.style.left = `${screenPos.left}px`;
+      div.style.top = `${screenPos.top}px`;
+      div.style.width = `${screenPos.width}px`;
+      div.style.fontFamily = "'Fraunces', serif";
+      div.style.fontStyle = layer.italic ? 'italic' : 'normal';
+      div.style.fontWeight = layer.fontWeight || 400;
+      div.style.fontSize = `${(layer.fontSize || 54) * scale}px`;
+      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 50}, 'opsz' ${layer.fontOpsz ?? 72}, 'wght' ${layer.fontWeight || 400}`;
+      div.style.letterSpacing = `${(layer.letterSpacing || 0) * scale}px`;
+      div.style.lineHeight = layer.lineHeight || 1.15;
+      div.style.color = layer.color || '#ffffff';
+      div.style.textAlign = layer.align || 'left';
+
+      if (layer.hasShadow) {
+        div.style.textShadow = `0 ${4 * scale}px ${12 * scale}px rgba(0, 0, 0, 0.85)`;
+      }
+
+      if (layer.isBadge) {
+        div.style.background = 'rgba(229, 9, 20, 0.28)';
+        div.style.border = `${1.5 * scale}px solid rgba(248, 113, 113, 0.5)`;
+        div.style.borderRadius = `${8 * scale}px`;
+        div.style.padding = `${4 * scale}px ${14 * scale}px`;
+      }
+
+      div.textContent = layer.text;
+
+      // Clicking text selects it
+      div.addEventListener('mousedown', (e) => {
+        this.selectTextLayer(layer);
+        this.switchTab('text');
+        this.render();
+      });
+      div.addEventListener('touchstart', (e) => {
+        this.selectTextLayer(layer);
+        this.switchTab('text');
+        this.render();
+      }, { passive: true });
+
+      this.textOverlayStage.appendChild(div);
+    });
   }
 
   updateSelectionBox() {
@@ -266,7 +326,7 @@ class App {
     }
   }
 
-  // Canvas Hit testing on tap/click
+  // Canvas Hit testing on tap
   hitTestLayer(canvasX, canvasY) {
     // 1. Text layers
     for (let i = this.state.textLayers.length - 1; i >= 0; i--) {
@@ -332,7 +392,7 @@ class App {
       p.classList.toggle('active', p.id === `panel-${tabName}`);
     });
 
-    // Auto-expand dock if it was collapsed
+    // Auto expand dock if collapsed
     if (this.controlsDock.classList.contains('collapsed')) {
       this.toggleDock(false);
     }
@@ -341,30 +401,36 @@ class App {
   toggleDock(shouldCollapse = null) {
     const willCollapse = shouldCollapse !== null ? shouldCollapse : !this.controlsDock.classList.contains('collapsed');
     this.controlsDock.classList.toggle('collapsed', willCollapse);
+    this.btnExpandDock.classList.toggle('hidden', !willCollapse);
     this.dockToggleIcon.textContent = willCollapse ? '▲' : '▼';
   }
 
   syncControlsFromState() {
-    // Text controls & Fraunces axes
+    // Text controls & Fraunces variable axes
     if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
       const l = this.selectedLayer;
       this.textInput.value = l.text || '';
       
       // SOFT Axis
-      this.softSlider.value = l.soft ?? 0;
-      this.softValue.textContent = l.soft ?? 0;
+      this.softSlider.value = l.soft ?? 50;
+      this.softValue.textContent = l.soft ?? 50;
 
-      // Optical Size Axis
+      // Optical Size
       this.opszSlider.value = l.fontOpsz ?? 72;
       this.opszValue.textContent = l.fontOpsz ?? 72;
 
       // Font Weight
-      this.fontWeightSlider.value = l.fontWeight || 700;
-      this.fontWeightValue.textContent = l.fontWeight || 700;
+      this.fontWeightSlider.value = l.fontWeight || 400;
+      this.fontWeightValue.textContent = l.fontWeight || 400;
+
+      // Size & Spacing
       this.fontSizeSlider.value = l.fontSize || 54;
       this.fontSizeValue.textContent = `${l.fontSize}px`;
       this.lineHeightSlider.value = l.lineHeight || 1.15;
       this.lineHeightValue.textContent = (l.lineHeight || 1.15).toFixed(2);
+      this.letterSpacingSlider.value = l.letterSpacing || 0;
+      this.letterSpacingValue.textContent = `${l.letterSpacing || 0}px`;
+
       this.textColorPicker.value = l.color || '#ffffff';
       this.textColorPreview.style.background = l.color || '#ffffff';
 
@@ -377,7 +443,7 @@ class App {
       this.btnToggleBadge.classList.toggle('active', !!l.isBadge);
 
       this.weightPresetBtns.forEach(btn => {
-        btn.classList.toggle('active', Number(btn.dataset.weight) === Number(l.fontWeight));
+        btn.classList.toggle('active', Number(btn.dataset.weight) === Number(l.fontWeight || 400));
       });
     }
 
@@ -402,7 +468,7 @@ class App {
       this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
     }
 
-    // Background Image
+    // Background Image adjustments
     this.bgBrightnessSlider.value = this.state.bgBrightness ?? 100;
     this.bgBrightnessValue.textContent = `${this.state.bgBrightness ?? 100}%`;
     this.bgContrastSlider.value = this.state.bgContrast ?? 100;
@@ -412,34 +478,33 @@ class App {
   }
 
   bindEvents() {
-    // Dock collapse toggle
-    this.dockHandleBar.addEventListener('click', (e) => {
-      this.toggleDock();
-    });
+    // Dock collapse & expand triggers
+    this.dockHandleBar.addEventListener('click', () => this.toggleDock());
+    this.btnExpandDock.addEventListener('click', () => this.toggleDock(false));
 
     // Zoom buttons
     this.btnZoomIn.addEventListener('click', () => {
-      this.applyZoom(this.zoom + 0.15);
+      this.touchControls.setZoomAndPan(this.touchControls.zoom + 0.15, this.touchControls.panX, this.touchControls.panY);
     });
 
     this.btnZoomOut.addEventListener('click', () => {
-      this.applyZoom(this.zoom - 0.15);
+      this.touchControls.setZoomAndPan(this.touchControls.zoom - 0.15, this.touchControls.panX, this.touchControls.panY);
     });
 
     this.btnZoomFit.addEventListener('click', () => {
-      this.applyZoom(1.0);
+      this.touchControls.resetView();
     });
 
-    // Wheel Zoom (Ctrl/Cmd + Wheel)
+    // Wheel Zoom on Desktop (Ctrl/Cmd + Wheel)
     window.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -0.08 : 0.08;
-        this.applyZoom(this.zoom + delta);
+        this.touchControls.setZoomAndPan(this.touchControls.zoom + delta, this.touchControls.panX, this.touchControls.panY);
       }
     }, { passive: false });
 
-    // Tab Switching
+    // Category Tabs
     this.dockTabs.addEventListener('click', (e) => {
       const btn = e.target.closest('.tab-btn');
       if (btn) {
@@ -483,7 +548,7 @@ class App {
       }
     });
 
-    // Fraunces opsz Axis Slider (9 - 144)
+    // Fraunces Optical Size opsz Slider (9 - 144)
     this.opszSlider.addEventListener('input', (e) => {
       if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
         const val = Number(e.target.value);
@@ -493,7 +558,17 @@ class App {
       }
     });
 
-    // Text Content & Typography Sliders
+    // Letter Spacing Slider (-3 to 25px)
+    this.letterSpacingSlider.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        const val = parseFloat(e.target.value);
+        this.selectedLayer.letterSpacing = val;
+        this.letterSpacingValue.textContent = `${val}px`;
+        this.render();
+      }
+    });
+
+    // Text Content & Font Sliders
     this.textInput.addEventListener('input', (e) => {
       if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
         this.selectedLayer.text = e.target.value;
@@ -590,14 +665,15 @@ class App {
         id: `text-${Date.now()}`,
         text: 'New Fraunces Text',
         fontSize: 42,
-        fontWeight: 600,
+        fontWeight: 400, // DEFAULT 400
         fontOpsz: 48,
-        soft: 0,
+        soft: 50,
+        letterSpacing: 0,
         lineHeight: 1.2,
         align: 'left',
         color: '#ffffff',
-        italic: false,
-        hasShadow: true,
+        italic: true, // DEFAULT ITALIC
+        hasShadow: false, // DEFAULT: NO GLOW
         isBadge: false,
         x: 100,
         y: 400 + Math.random() * 80
@@ -709,14 +785,13 @@ class App {
       this.render();
     });
 
-    // Logo corner positioning with 5% margin from edge
+    // Quick Logo 5% corner padding align
     this.logoPosBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const pos = btn.dataset.pos;
         const width = this.renderer.logicalWidth;
         const height = this.renderer.logicalHeight;
 
-        // 5% margin calculation from corner
         const marginX = Math.round(width * 0.05);
         const marginY = Math.round(height * 0.05);
         const halfSize = this.state.logo.size / 2;
@@ -735,7 +810,7 @@ class App {
           this.state.logo.y = height - marginY - halfSize;
         }
         this.render();
-        this.showToast(`Logo aligned to ${pos.replace('-', ' ')} with 5% margin`);
+        this.showToast(`Aligned to ${pos.replace('-', ' ')} with 5% margin`);
       });
     });
 
@@ -790,6 +865,7 @@ class App {
       if (confirm('Reset canvas to default?')) {
         this.state = this.getDefaultState();
         this.selectTextLayer(this.state.textLayers[0]);
+        this.touchControls.resetView();
         this.updateCanvasDimensions();
         this.render();
         this.showToast('Reset complete');
@@ -903,11 +979,15 @@ class App {
 
     this.state.textLayers = tpl.textLayers.map((l, idx) => ({
       ...l,
-      soft: l.soft ?? 0,
+      soft: l.soft ?? 50,
+      fontWeight: l.fontWeight || 400, // DEFAULT 400
+      italic: l.italic !== undefined ? l.italic : true, // DEFAULT ITALIC
+      letterSpacing: l.letterSpacing || 0,
       id: `text-${idx + 1}`
     }));
 
     this.selectTextLayer(this.state.textLayers[0]);
+    this.touchControls.resetView();
     this.updateCanvasDimensions();
     this.render();
     this.switchTab('text');

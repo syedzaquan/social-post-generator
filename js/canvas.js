@@ -1,6 +1,6 @@
 /* ==========================================================================
    StudioPost — Canvas Engine & High-DPI Renderer
-   Renders layers, handles text wrapping with Fraunces, and exports crisp PNGs.
+   Renders layers, handles Fraunces variable fonts (SOFT, opsz, wght), and exports crisp PNGs.
    ========================================================================== */
 
 export const ASPECT_RATIOS = {
@@ -21,8 +21,9 @@ export class CanvasRenderer {
     this.logicalWidth = 1080;
     this.logicalHeight = 1080;
 
-    // Cache loaded images
+    // Cache loaded images & base64 fonts
     this.imageCache = new Map();
+    this.fontBase64Cache = {};
   }
 
   setAspectRatio(ratioKey) {
@@ -54,16 +55,33 @@ export class CanvasRenderer {
     });
   }
 
-  // Ensure Google Font Fraunces is loaded before painting
+  // Convert font TTF file to base64 for SVG export
+  async getFontBase64(isItalic) {
+    const key = isItalic ? 'italic' : 'roman';
+    if (this.fontBase64Cache[key]) {
+      return this.fontBase64Cache[key];
+    }
+    try {
+      const url = isItalic ? 'assets/Fraunces-Italic.ttf' : 'assets/Fraunces-Roman.ttf';
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      this.fontBase64Cache[key] = btoa(binary);
+      return this.fontBase64Cache[key];
+    } catch (e) {
+      console.warn('Could not load local font file for SVG export:', e);
+      return null;
+    }
+  }
+
+  // Ensure Google Font / Local Fraunces is ready before painting
   async ensureFontsLoaded(textLayers) {
     try {
       await document.fonts.ready;
-      for (const layer of textLayers) {
-        const style = layer.italic ? 'italic' : 'normal';
-        const weight = layer.fontWeight || 700;
-        const fontStr = `${style} ${weight} 48px 'Fraunces'`;
-        await document.fonts.load(fontStr);
-      }
     } catch (e) {
       console.warn('Font load check failed:', e);
     }
@@ -102,23 +120,30 @@ export class CanvasRenderer {
   // Calculate text layer bounding box in logical canvas coordinates
   getTextBounds(ctx, layer) {
     const style = layer.italic ? 'italic' : 'normal';
-    const weight = layer.fontWeight || 700;
+    const weight = layer.fontWeight || 400;
     const fontSize = layer.fontSize || 54;
-    const soft = layer.soft ?? 0;
+    const soft = layer.soft ?? 50;
     const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
+    const letterSpacing = layer.letterSpacing || 0;
 
     ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
     if ('fontVariationSettings' in ctx) {
       ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}`;
     }
+    if ('letterSpacing' in ctx) {
+      ctx.letterSpacing = `${letterSpacing}px`;
+    }
 
     const maxWidth = this.logicalWidth * 0.84;
     const lines = this.wrapText(ctx, layer.text, maxWidth);
-    const lineHeight = fontSize * (layer.lineHeight || 1.2);
+    const lineHeight = fontSize * (layer.lineHeight || 1.15);
 
     let maxLineWidth = 0;
     for (const line of lines) {
-      const w = ctx.measureText(line).width;
+      let w = ctx.measureText(line).width;
+      if (!('letterSpacing' in ctx) && letterSpacing !== 0) {
+        w += Math.max(0, line.length - 1) * letterSpacing;
+      }
       if (w > maxLineWidth) maxLineWidth = w;
     }
 
@@ -157,6 +182,97 @@ export class CanvasRenderer {
     };
   }
 
+  // Render text layer via SVG with embedded variable font for 100% SOFT & opsz fidelity on export
+  async renderTextViaSVG(ctx, layer, bounds) {
+    try {
+      const isItalic = !!layer.italic;
+      const base64Font = await this.getFontBase64(isItalic);
+      if (!base64Font) return false;
+
+      const soft = layer.soft ?? 50;
+      const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 54));
+      const weight = layer.fontWeight || 400;
+      const style = isItalic ? 'italic' : 'normal';
+      const fontSize = layer.fontSize || 54;
+      const letterSpacing = layer.letterSpacing || 0;
+      const lineHeight = layer.lineHeight || 1.15;
+      const color = layer.color || '#ffffff';
+      const align = layer.align || 'left';
+
+      // Badge pill background
+      let badgeStyle = '';
+      if (layer.isBadge) {
+        badgeStyle = `background: rgba(229, 9, 20, 0.28); border: 1.5px solid rgba(248, 113, 113, 0.5); border-radius: 8px; padding: 4px 14px; display: inline-block;`;
+      }
+
+      // Shadow / Glow
+      const textShadow = layer.hasShadow ? `0 4px 12px rgba(0,0,0,0.85)` : 'none';
+
+      // HTML escaped text
+      const escapedText = layer.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>');
+
+      const svgString = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}">
+          <defs>
+            <style>
+              @font-face {
+                font-family: 'FrauncesVar';
+                src: url(data:font/truetype;charset=utf-8;base64,${base64Font}) format('truetype');
+                font-weight: 100 900;
+                font-style: ${style};
+              }
+              .text-box {
+                font-family: 'FrauncesVar', serif;
+                font-style: ${style};
+                font-weight: ${weight};
+                font-size: ${fontSize}px;
+                font-variation-settings: 'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight};
+                letter-spacing: ${letterSpacing}px;
+                line-height: ${lineHeight};
+                color: ${color};
+                text-align: ${align};
+                text-shadow: ${textShadow};
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                width: ${bounds.width}px;
+                ${badgeStyle}
+              }
+            </style>
+          </defs>
+          <foreignObject x="${bounds.left}" y="${bounds.top}" width="${bounds.width}" height="${bounds.height}">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="text-box">
+              ${escapedText}
+            </div>
+          </foreignObject>
+        </svg>
+      `;
+
+      return new Promise((resolve) => {
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          resolve(true);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(false);
+        };
+        img.src = url;
+      });
+    } catch (e) {
+      console.warn('SVG text render failed:', e);
+      return false;
+    }
+  }
+
   // Main Render Routine
   async render(state, target = 'preview') {
     const isExport = target === 'export';
@@ -177,13 +293,11 @@ export class CanvasRenderer {
     if (state.bgImage) {
       const bgImg = await this.loadImage(state.bgImage);
       if (bgImg) {
-        // Apply adjustments
         const brightness = state.bgBrightness ?? 100;
         const contrast = state.bgContrast ?? 100;
         const blur = state.bgBlur ?? 0;
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) blur(${blur}px)`;
 
-        // Cover canvas
         const imgRatio = bgImg.width / bgImg.height;
         const canvasRatio = this.logicalWidth / this.logicalHeight;
         let drawWidth, drawHeight, offsetX, offsetY;
@@ -200,7 +314,6 @@ export class CanvasRenderer {
           offsetY = (this.logicalHeight - drawHeight) / 2;
         }
 
-        // Draw slightly oversized if blurred to avoid edge transparency
         if (blur > 0) {
           const expand = blur * 4;
           ctx.drawImage(bgImg, offsetX - expand, offsetY - expand, drawWidth + expand * 2, drawHeight + expand * 2);
@@ -211,7 +324,7 @@ export class CanvasRenderer {
     }
     ctx.restore();
 
-    // 2. Render Gradient Layer (Readability & Styling)
+    // 2. Render Gradient Layer
     if (state.gradient && state.gradient.active) {
       ctx.save();
       const grad = state.gradient;
@@ -225,7 +338,6 @@ export class CanvasRenderer {
         const radius = Math.max(this.logicalWidth, this.logicalHeight) * 0.7;
         canvasGradient = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
       } else {
-        // Linear gradient with angle
         const angleRad = ((grad.angle ?? 180) - 90) * (Math.PI / 180);
         const cx = this.logicalWidth / 2;
         const cy = this.logicalHeight / 2;
@@ -239,14 +351,12 @@ export class CanvasRenderer {
         canvasGradient = ctx.createLinearGradient(x0, y0, x1, y1);
       }
 
-      // Add color stops
       if (grad.stops && grad.stops.length > 0) {
         grad.stops.forEach((stop) => {
           const rgba = this.hexToRgba(stop.color, stop.alpha ?? 1);
           canvasGradient.addColorStop(stop.position, rgba);
         });
       } else {
-        // Fallback default bottom fade
         canvasGradient.addColorStop(0, 'rgba(0,0,0,0)');
         canvasGradient.addColorStop(1, 'rgba(0,0,0,0.85)');
       }
@@ -273,8 +383,6 @@ export class CanvasRenderer {
         }
 
         const half = bounds.width / 2;
-
-        // Rounded corners clip
         if (radius > 0) {
           ctx.beginPath();
           ctx.roundRect(-half, -half, bounds.width, bounds.height, radius);
@@ -286,31 +394,40 @@ export class CanvasRenderer {
       ctx.restore();
     }
 
-    // 4. Render Text Layers (Using Fraunces Google Font)
-    if (state.textLayers && state.textLayers.length > 0) {
+    // 4. Render Text Layers (Only onto export canvas, or as fallback)
+    // On preview canvas, live DOM overlay provides real-time variable font rendering!
+    if (isExport && state.textLayers && state.textLayers.length > 0) {
       await this.ensureFontsLoaded(state.textLayers);
 
       for (const layer of state.textLayers) {
         if (!layer.text || layer.visible === false) continue;
-        ctx.save();
+        const bounds = this.getTextBounds(ctx, layer);
 
+        // Try SVG variable font rendering first for exact SOFT & opsz rendering
+        const svgRendered = await this.renderTextViaSVG(ctx, layer, bounds);
+        if (svgRendered) continue;
+
+        // Fallback to Canvas 2D text drawing
+        ctx.save();
         const style = layer.italic ? 'italic' : 'normal';
-        const weight = layer.fontWeight || 700;
+        const weight = layer.fontWeight || 400;
         const fontSize = layer.fontSize || 54;
         const color = layer.color || '#ffffff';
-        const soft = layer.soft ?? 0;
+        const soft = layer.soft ?? 50;
         const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
+        const letterSpacing = layer.letterSpacing || 0;
 
         ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
         if ('fontVariationSettings' in ctx) {
           ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}`;
         }
+        if ('letterSpacing' in ctx) {
+          ctx.letterSpacing = `${letterSpacing}px`;
+        }
         ctx.textBaseline = 'top';
         ctx.textAlign = layer.align || 'left';
 
-        const bounds = this.getTextBounds(ctx, layer);
-
-        // Highlight Pill Badge background
+        // Badge pill
         if (layer.isBadge) {
           ctx.save();
           ctx.fillStyle = 'rgba(229, 9, 20, 0.28)';
@@ -323,7 +440,7 @@ export class CanvasRenderer {
           ctx.restore();
         }
 
-        // Text Readability Glow / Shadow
+        // Glow
         if (layer.hasShadow) {
           ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
           ctx.shadowBlur = Math.max(12, fontSize * 0.3);
@@ -332,13 +449,11 @@ export class CanvasRenderer {
         }
 
         ctx.fillStyle = color;
-
         let currentY = layer.y;
         for (const line of bounds.lines) {
           ctx.fillText(line, layer.x, currentY);
           currentY += bounds.lineHeight;
         }
-
         ctx.restore();
       }
     }
@@ -358,7 +473,6 @@ export class CanvasRenderer {
 
   // Export Canvas to PNG and prompt browser download
   async exportPNG(state, filenamePrefix = 'studiopost') {
-    // Render full-resolution to exportCanvas
     await this.render(state, 'export');
 
     return new Promise((resolve) => {
