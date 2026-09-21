@@ -1,0 +1,892 @@
+/* ==========================================================================
+   StudioPost — Application Controller
+   Coordinates state, event listeners, canvas rendering, and UI controls.
+   ========================================================================== */
+
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js';
+import { TouchControls } from './touch-controls.js';
+import { 
+  GRADIENT_PRESETS, 
+  SAMPLE_BACKGROUNDS, 
+  SAMPLE_LOGOS, 
+  STARTER_TEMPLATES 
+} from './presets.js';
+
+class App {
+  constructor() {
+    // DOM Elements
+    this.previewCanvas = document.getElementById('previewCanvas');
+    this.exportCanvas = document.getElementById('exportCanvas');
+    this.canvasWrapper = document.getElementById('canvasWrapper');
+    this.canvasStage = document.getElementById('canvasStage');
+    this.selectionBox = document.getElementById('selectionBox');
+    this.selectionTag = document.getElementById('selectionTag');
+    this.toastEl = document.getElementById('toast');
+
+    // Tab buttons & panels
+    this.dockTabs = document.getElementById('dockTabs');
+    this.tabBtns = document.querySelectorAll('.tab-btn');
+    this.panels = document.querySelectorAll('.panel');
+
+    // Controls: Export & Reset
+    this.btnExport = document.getElementById('btnExport');
+    this.btnReset = document.getElementById('btnReset');
+
+    // Controls: Format chips
+    this.ratioChips = document.querySelectorAll('.format-chips-bar .chip');
+
+    // Controls: Text
+    this.textInput = document.getElementById('textInput');
+    this.fontWeightSlider = document.getElementById('fontWeightSlider');
+    this.fontWeightValue = document.getElementById('fontWeightValue');
+    this.fontSizeSlider = document.getElementById('fontSizeSlider');
+    this.fontSizeValue = document.getElementById('fontSizeValue');
+    this.lineHeightSlider = document.getElementById('lineHeightSlider');
+    this.lineHeightValue = document.getElementById('lineHeightValue');
+    this.textAlignBtns = document.querySelectorAll('#textAlignControl .segment-btn');
+    this.btnToggleItalic = document.getElementById('btnToggleItalic');
+    this.btnToggleShadow = document.getElementById('btnToggleShadow');
+    this.btnToggleBadge = document.getElementById('btnToggleBadge');
+    this.textColorPicker = document.getElementById('textColorPicker');
+    this.textColorPreview = document.getElementById('textColorPreview');
+    this.btnAddTextLayer = document.getElementById('btnAddTextLayer');
+    this.weightPresetBtns = document.querySelectorAll('.weight-presets .preset-pill');
+
+    // Controls: Gradient
+    this.toggleGradientActive = document.getElementById('toggleGradientActive');
+    this.gradientPresetsGrid = document.getElementById('gradientPresetsGrid');
+    this.gradientOpacitySlider = document.getElementById('gradientOpacitySlider');
+    this.gradientOpacityValue = document.getElementById('gradientOpacityValue');
+    this.gradientAngleSlider = document.getElementById('gradientAngleSlider');
+    this.gradientAngleValue = document.getElementById('gradientAngleValue');
+    this.gradientBlendMode = document.getElementById('gradientBlendMode');
+    this.gradStartColor = document.getElementById('gradStartColor');
+    this.gradStartAlpha = document.getElementById('gradStartAlpha');
+    this.gradEndColor = document.getElementById('gradEndColor');
+    this.gradEndAlpha = document.getElementById('gradEndAlpha');
+
+    // Controls: Logo
+    this.toggleLogoActive = document.getElementById('toggleLogoActive');
+    this.logoFileInput = document.getElementById('logoFileInput');
+    this.logoSizeSlider = document.getElementById('logoSizeSlider');
+    this.logoSizeValue = document.getElementById('logoSizeValue');
+    this.logoRadiusSlider = document.getElementById('logoRadiusSlider');
+    this.logoRadiusValue = document.getElementById('logoRadiusValue');
+    this.logoOpacitySlider = document.getElementById('logoOpacitySlider');
+    this.logoOpacityValue = document.getElementById('logoOpacityValue');
+    this.logoPosBtns = document.querySelectorAll('.pos-btn');
+
+    // Controls: Image (Background)
+    this.bgFileInput = document.getElementById('bgFileInput');
+    this.bgBrightnessSlider = document.getElementById('bgBrightnessSlider');
+    this.bgBrightnessValue = document.getElementById('bgBrightnessValue');
+    this.bgContrastSlider = document.getElementById('bgContrastSlider');
+    this.bgContrastValue = document.getElementById('bgContrastValue');
+    this.bgBlurSlider = document.getElementById('bgBlurSlider');
+    this.bgBlurValue = document.getElementById('bgBlurValue');
+
+    // Controls: Templates & Layers
+    this.templatesGrid = document.getElementById('templatesGrid');
+    this.layersList = document.getElementById('layersList');
+
+    // State Initialization
+    this.state = this.getDefaultState();
+    this.selectedLayer = null; // Reference to selected text layer or logo
+
+    // Services
+    this.renderer = new CanvasRenderer(this.previewCanvas, this.exportCanvas);
+    this.touchControls = new TouchControls(
+      this.canvasStage,
+      this.previewCanvas,
+      this.selectionBox,
+      this.selectionTag,
+      () => this.onLayerModifiedByGesture(),
+      (x, y) => this.hitTestLayer(x, y)
+    );
+
+    this.init();
+  }
+
+  getDefaultState() {
+    return {
+      aspectRatio: '1:1',
+      bgColor: '#090a10',
+      bgImage: SAMPLE_BACKGROUNDS['gradient-dark'],
+      bgBrightness: 100,
+      bgContrast: 100,
+      bgBlur: 0,
+      gradient: {
+        active: true,
+        presetId: 'bottom-fade',
+        type: 'linear',
+        angle: 180,
+        opacity: 85,
+        blendMode: 'normal',
+        stops: [
+          { color: '#000000', alpha: 0, position: 0.2 },
+          { color: '#000000', alpha: 0.9, position: 1.0 }
+        ]
+      },
+      logo: {
+        active: true,
+        image: SAMPLE_LOGOS['modern'],
+        x: 130,
+        y: 130,
+        size: 90,
+        radius: 0,
+        opacity: 100,
+        rotation: 0
+      },
+      textLayers: [
+        {
+          id: 'text-1',
+          text: 'Design with intention, craft with soul.',
+          fontSize: 58,
+          fontWeight: 700,
+          lineHeight: 1.16,
+          align: 'left',
+          color: '#ffffff',
+          italic: false,
+          hasShadow: true,
+          isBadge: false,
+          x: 90,
+          y: 540
+        },
+        {
+          id: 'text-2',
+          text: 'STUDIO COLLECTION — 2026',
+          fontSize: 16,
+          fontWeight: 600,
+          lineHeight: 1.2,
+          align: 'left',
+          color: '#c7d2fe',
+          italic: false,
+          hasShadow: false,
+          isBadge: true,
+          x: 90,
+          y: 460
+        }
+      ]
+    };
+  }
+
+  init() {
+    this.populateGradientPresets();
+    this.populateTemplates();
+    this.bindEvents();
+    
+    // Select first text layer by default
+    this.selectTextLayer(this.state.textLayers[0]);
+
+    this.updateCanvasDimensions();
+    this.render();
+
+    window.addEventListener('resize', () => {
+      this.updateCanvasDimensions();
+      this.render();
+    });
+  }
+
+  // Calculate and resize stage container to fit available screen space
+  updateCanvasDimensions() {
+    const ratioData = ASPECT_RATIOS[this.state.aspectRatio];
+    this.renderer.setAspectRatio(this.state.aspectRatio);
+
+    const containerWidth = this.canvasWrapper.clientWidth;
+    const containerHeight = this.canvasWrapper.clientHeight - 24; // buffer
+
+    const targetRatio = ratioData.width / ratioData.height;
+
+    let stageWidth, stageHeight;
+
+    if (containerWidth / containerHeight > targetRatio) {
+      stageHeight = Math.min(containerHeight, 520);
+      stageWidth = stageHeight * targetRatio;
+    } else {
+      stageWidth = Math.min(containerWidth - 16, 480);
+      stageHeight = stageWidth / targetRatio;
+    }
+
+    this.canvasStage.style.width = `${Math.round(stageWidth)}px`;
+    this.canvasStage.style.height = `${Math.round(stageHeight)}px`;
+
+    if (this.selectedLayer) {
+      setTimeout(() => this.updateSelectionBox(), 20);
+    }
+  }
+
+  async render() {
+    await this.renderer.render(this.state, 'preview');
+    this.updateSelectionBox();
+    this.updateLayersPanel();
+  }
+
+  updateSelectionBox() {
+    if (!this.selectedLayer) {
+      this.touchControls.select(null, null, null);
+      return;
+    }
+
+    if (this.selectedLayer.id === 'logo') {
+      const bounds = this.renderer.getLogoBounds(this.state.logo);
+      this.touchControls.select('logo', this.state.logo, bounds);
+    } else {
+      const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, this.selectedLayer);
+      this.touchControls.select('text', this.selectedLayer, bounds);
+    }
+  }
+
+  // Hit testing when user taps on canvas
+  hitTestLayer(canvasX, canvasY) {
+    // 1. Check text layers in reverse order (top to bottom)
+    for (let i = this.state.textLayers.length - 1; i >= 0; i--) {
+      const layer = this.state.textLayers[i];
+      const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, layer);
+      if (
+        canvasX >= bounds.left &&
+        canvasX <= bounds.left + bounds.width &&
+        canvasY >= bounds.top &&
+        canvasY <= bounds.top + bounds.height
+      ) {
+        this.selectTextLayer(layer);
+        this.switchTab('text');
+        this.render();
+        return { type: 'text', layer };
+      }
+    }
+
+    // 2. Check logo layer
+    if (this.state.logo && this.state.logo.active) {
+      const logoBounds = this.renderer.getLogoBounds(this.state.logo);
+      if (
+        canvasX >= logoBounds.left &&
+        canvasX <= logoBounds.left + logoBounds.width &&
+        canvasY >= logoBounds.top &&
+        canvasY <= logoBounds.top + logoBounds.height
+      ) {
+        this.selectLogoLayer();
+        this.switchTab('logo');
+        this.render();
+        return { type: 'logo', layer: this.state.logo };
+      }
+    }
+
+    return null;
+  }
+
+  onLayerModifiedByGesture() {
+    this.syncControlsFromState();
+    this.render();
+  }
+
+  selectTextLayer(layer) {
+    this.selectedLayer = layer;
+    this.syncControlsFromState();
+    this.updateSelectionBox();
+  }
+
+  selectLogoLayer() {
+    this.selectedLayer = { id: 'logo' };
+    this.syncControlsFromState();
+    this.updateSelectionBox();
+  }
+
+  switchTab(tabName) {
+    this.tabBtns.forEach(btn => {
+      const isActive = btn.dataset.tab === tabName;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    this.panels.forEach(p => {
+      p.classList.toggle('active', p.id === `panel-${tabName}`);
+    });
+  }
+
+  syncControlsFromState() {
+    // Text controls sync
+    if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+      const l = this.selectedLayer;
+      this.textInput.value = l.text || '';
+      this.fontWeightSlider.value = l.fontWeight || 700;
+      this.fontWeightValue.textContent = l.fontWeight || 700;
+      this.fontSizeSlider.value = l.fontSize || 54;
+      this.fontSizeValue.textContent = `${l.fontSize}px`;
+      this.lineHeightSlider.value = l.lineHeight || 1.15;
+      this.lineHeightValue.textContent = (l.lineHeight || 1.15).toFixed(2);
+      this.textColorPicker.value = l.color || '#ffffff';
+      this.textColorPreview.style.background = l.color || '#ffffff';
+
+      this.textAlignBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.align === (l.align || 'left'));
+      });
+
+      this.btnToggleItalic.classList.toggle('active', !!l.italic);
+      this.btnToggleShadow.classList.toggle('active', !!l.hasShadow);
+      this.btnToggleBadge.classList.toggle('active', !!l.isBadge);
+
+      this.weightPresetBtns.forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.weight) === Number(l.fontWeight));
+      });
+    }
+
+    // Logo controls sync
+    if (this.state.logo) {
+      this.toggleLogoActive.checked = this.state.logo.active;
+      this.logoSizeSlider.value = this.state.logo.size;
+      this.logoSizeValue.textContent = `${this.state.logo.size}px`;
+      this.logoRadiusSlider.value = this.state.logo.radius || 0;
+      this.logoRadiusValue.textContent = `${this.state.logo.radius || 0}px`;
+      this.logoOpacitySlider.value = this.state.logo.opacity ?? 100;
+      this.logoOpacityValue.textContent = `${this.state.logo.opacity ?? 100}%`;
+    }
+
+    // Gradient controls sync
+    if (this.state.gradient) {
+      this.toggleGradientActive.checked = this.state.gradient.active;
+      this.gradientOpacitySlider.value = this.state.gradient.opacity;
+      this.gradientOpacityValue.textContent = `${this.state.gradient.opacity}%`;
+      this.gradientAngleSlider.value = this.state.gradient.angle;
+      this.gradientAngleValue.textContent = `${this.state.gradient.angle}°`;
+      this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
+    }
+
+    // Background Image adjustments sync
+    this.bgBrightnessSlider.value = this.state.bgBrightness ?? 100;
+    this.bgBrightnessValue.textContent = `${this.state.bgBrightness ?? 100}%`;
+    this.bgContrastSlider.value = this.state.bgContrast ?? 100;
+    this.bgContrastValue.textContent = `${this.state.bgContrast ?? 100}%`;
+    this.bgBlurSlider.value = this.state.bgBlur ?? 0;
+    this.bgBlurValue.textContent = `${this.state.bgBlur ?? 0}px`;
+  }
+
+  bindEvents() {
+    // Tab Switching
+    this.dockTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (btn) {
+        this.switchTab(btn.dataset.tab);
+        if (btn.dataset.tab === 'logo') {
+          this.selectLogoLayer();
+          this.render();
+        } else if (btn.dataset.tab === 'text' && (!this.selectedLayer || this.selectedLayer.id === 'logo')) {
+          if (this.state.textLayers.length > 0) {
+            this.selectTextLayer(this.state.textLayers[0]);
+            this.render();
+          }
+        }
+      }
+    });
+
+    // Aspect Ratio Chips
+    this.ratioChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        this.ratioChips.forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-checked', 'false');
+        });
+        chip.classList.add('active');
+        chip.setAttribute('aria-checked', 'true');
+
+        this.state.aspectRatio = chip.dataset.ratio;
+        this.updateCanvasDimensions();
+        this.render();
+        this.showToast(`Canvas switched to ${chip.dataset.ratio}`);
+      });
+    });
+
+    // Text Input & Sliders
+    this.textInput.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        this.selectedLayer.text = e.target.value;
+        this.render();
+      }
+    });
+
+    this.fontWeightSlider.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        const val = Number(e.target.value);
+        this.selectedLayer.fontWeight = val;
+        this.fontWeightValue.textContent = val;
+        this.weightPresetBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.weight) === val));
+        this.render();
+      }
+    });
+
+    this.weightPresetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+          const val = Number(btn.dataset.weight);
+          this.selectedLayer.fontWeight = val;
+          this.fontWeightSlider.value = val;
+          this.fontWeightValue.textContent = val;
+          this.weightPresetBtns.forEach(b => b.classList.toggle('active', b === btn));
+          this.render();
+        }
+      });
+    });
+
+    this.fontSizeSlider.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        const val = Number(e.target.value);
+        this.selectedLayer.fontSize = val;
+        this.fontSizeValue.textContent = `${val}px`;
+        this.render();
+      }
+    });
+
+    this.lineHeightSlider.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        const val = parseFloat(e.target.value);
+        this.selectedLayer.lineHeight = val;
+        this.lineHeightValue.textContent = val.toFixed(2);
+        this.render();
+      }
+    });
+
+    this.textAlignBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+          this.textAlignBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this.selectedLayer.align = btn.dataset.align;
+          this.render();
+        }
+      });
+    });
+
+    this.btnToggleItalic.addEventListener('click', () => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        this.selectedLayer.italic = !this.selectedLayer.italic;
+        this.btnToggleItalic.classList.toggle('active', this.selectedLayer.italic);
+        this.render();
+      }
+    });
+
+    this.btnToggleShadow.addEventListener('click', () => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        this.selectedLayer.hasShadow = !this.selectedLayer.hasShadow;
+        this.btnToggleShadow.classList.toggle('active', this.selectedLayer.hasShadow);
+        this.render();
+      }
+    });
+
+    this.btnToggleBadge.addEventListener('click', () => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        this.selectedLayer.isBadge = !this.selectedLayer.isBadge;
+        this.btnToggleBadge.classList.toggle('active', this.selectedLayer.isBadge);
+        this.render();
+      }
+    });
+
+    this.textColorPicker.addEventListener('input', (e) => {
+      if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+        this.selectedLayer.color = e.target.value;
+        this.textColorPreview.style.background = e.target.value;
+        this.render();
+      }
+    });
+
+    this.btnAddTextLayer.addEventListener('click', () => {
+      const newLayer = {
+        id: `text-${Date.now()}`,
+        text: 'New Fraunces Text',
+        fontSize: 42,
+        fontWeight: 600,
+        lineHeight: 1.2,
+        align: 'left',
+        color: '#ffffff',
+        italic: false,
+        hasShadow: true,
+        isBadge: false,
+        x: 100,
+        y: 400 + Math.random() * 80
+      };
+      this.state.textLayers.push(newLayer);
+      this.selectTextLayer(newLayer);
+      this.render();
+      this.showToast('Added new Fraunces text layer');
+    });
+
+    // Gradient Events
+    this.toggleGradientActive.addEventListener('change', (e) => {
+      this.state.gradient.active = e.target.checked;
+      this.render();
+    });
+
+    this.gradientOpacitySlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.gradient.opacity = val;
+      this.gradientOpacityValue.textContent = `${val}%`;
+      this.render();
+    });
+
+    this.gradientAngleSlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.gradient.angle = val;
+      this.gradientAngleValue.textContent = `${val}°`;
+      this.render();
+    });
+
+    this.gradientBlendMode.addEventListener('change', (e) => {
+      this.state.gradient.blendMode = e.target.value;
+      this.render();
+    });
+
+    const updateCustomGradientColors = () => {
+      const startColor = this.gradStartColor.value;
+      const startAlpha = Number(this.gradStartAlpha.value) / 100;
+      const endColor = this.gradEndColor.value;
+      const endAlpha = Number(this.gradEndAlpha.value) / 100;
+
+      this.state.gradient.type = 'linear';
+      this.state.gradient.stops = [
+        { color: startColor, alpha: startAlpha, position: 0 },
+        { color: endColor, alpha: endAlpha, position: 1.0 }
+      ];
+      this.render();
+    };
+
+    this.gradStartColor.addEventListener('input', updateCustomGradientColors);
+    this.gradStartAlpha.addEventListener('input', updateCustomGradientColors);
+    this.gradEndColor.addEventListener('input', updateCustomGradientColors);
+    this.gradEndAlpha.addEventListener('input', updateCustomGradientColors);
+
+    // Logo Events
+    this.toggleLogoActive.addEventListener('change', (e) => {
+      this.state.logo.active = e.target.checked;
+      this.render();
+    });
+
+    this.logoFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          this.state.logo.image = ev.target.result;
+          this.state.logo.active = true;
+          this.toggleLogoActive.checked = true;
+          this.selectLogoLayer();
+          this.render();
+          this.showToast('Brand logo uploaded! 🏷️');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.querySelectorAll('.sample-logo-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.dataset.logo;
+        if (SAMPLE_LOGOS[key]) {
+          this.state.logo.image = SAMPLE_LOGOS[key];
+          this.state.logo.active = true;
+          this.toggleLogoActive.checked = true;
+          this.selectLogoLayer();
+          this.render();
+          this.showToast(`Applied ${chip.textContent} logo`);
+        }
+      });
+    });
+
+    this.logoSizeSlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.logo.size = val;
+      this.logoSizeValue.textContent = `${val}px`;
+      this.render();
+    });
+
+    this.logoRadiusSlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.logo.radius = val;
+      this.logoRadiusValue.textContent = `${val}px`;
+      this.render();
+    });
+
+    this.logoOpacitySlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.logo.opacity = val;
+      this.logoOpacityValue.textContent = `${val}%`;
+      this.render();
+    });
+
+    this.logoPosBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pos = btn.dataset.pos;
+        const margin = 100;
+        const width = this.renderer.logicalWidth;
+        const height = this.renderer.logicalHeight;
+
+        if (pos === 'top-left') {
+          this.state.logo.x = margin;
+          this.state.logo.y = margin;
+        } else if (pos === 'top-right') {
+          this.state.logo.x = width - margin;
+          this.state.logo.y = margin;
+        } else if (pos === 'bottom-left') {
+          this.state.logo.x = margin;
+          this.state.logo.y = height - margin;
+        } else if (pos === 'bottom-right') {
+          this.state.logo.x = width - margin;
+          this.state.logo.y = height - margin;
+        }
+        this.render();
+      });
+    });
+
+    // Background Image Upload & Filters
+    this.bgFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          this.state.bgImage = ev.target.result;
+          this.render();
+          this.showToast('Background image uploaded! 🖼️');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.querySelectorAll('.sample-bg-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.dataset.bg;
+        if (SAMPLE_BACKGROUNDS[key]) {
+          this.state.bgImage = SAMPLE_BACKGROUNDS[key];
+          this.render();
+          this.showToast(`Applied ${chip.textContent} background`);
+        }
+      });
+    });
+
+    this.bgBrightnessSlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.bgBrightness = val;
+      this.bgBrightnessValue.textContent = `${val}%`;
+      this.render();
+    });
+
+    this.bgContrastSlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.bgContrast = val;
+      this.bgContrastValue.textContent = `${val}%`;
+      this.render();
+    });
+
+    this.bgBlurSlider.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.state.bgBlur = val;
+      this.bgBlurValue.textContent = `${val}px`;
+      this.render();
+    });
+
+    // Reset Button
+    this.btnReset.addEventListener('click', () => {
+      if (confirm('Reset canvas to default template?')) {
+        this.state = this.getDefaultState();
+        this.selectTextLayer(this.state.textLayers[0]);
+        this.updateCanvasDimensions();
+        this.render();
+        this.showToast('Reset to default');
+      }
+    });
+
+    // Export PNG Button
+    this.btnExport.addEventListener('click', async () => {
+      this.btnExport.disabled = true;
+      this.btnExport.style.opacity = '0.7';
+      this.showToast('Rendering high-res PNG... ⏳');
+
+      try {
+        const success = await this.renderer.exportPNG(this.state, 'StudioPost');
+        if (success) {
+          this.showToast('Saved high-resolution PNG! 🎉');
+        } else {
+          this.showToast('Export failed. Please try again.');
+        }
+      } catch (err) {
+        console.error(err);
+        this.showToast('Error exporting image');
+      } finally {
+        this.btnExport.disabled = false;
+        this.btnExport.style.opacity = '1';
+      }
+    });
+  }
+
+  populateGradientPresets() {
+    this.gradientPresetsGrid.innerHTML = '';
+    GRADIENT_PRESETS.forEach(preset => {
+      const card = document.createElement('div');
+      card.className = `gradient-preset-card ${this.state.gradient.presetId === preset.id ? 'active' : ''}`;
+      card.style.background = preset.preview;
+      card.title = preset.description;
+      card.innerHTML = `<span>${preset.name}</span>`;
+
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.gradient-preset-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        this.state.gradient.active = true;
+        this.state.gradient.presetId = preset.id;
+        this.state.gradient.type = preset.type;
+        this.state.gradient.angle = preset.angle;
+        this.state.gradient.opacity = Math.round(preset.opacity * 100);
+        this.state.gradient.blendMode = preset.blendMode;
+        this.state.gradient.stops = JSON.parse(JSON.stringify(preset.stops));
+
+        this.syncControlsFromState();
+        this.render();
+        this.showToast(`Applied ${preset.name} gradient`);
+      });
+
+      this.gradientPresetsGrid.appendChild(card);
+    });
+  }
+
+  populateTemplates() {
+    this.templatesGrid.innerHTML = '';
+    STARTER_TEMPLATES.forEach(tpl => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+      const bgSrc = SAMPLE_BACKGROUNDS[tpl.bg] || '';
+      card.style.backgroundImage = `url("${bgSrc}")`;
+
+      card.innerHTML = `
+        <span class="tpl-category">${tpl.category}</span>
+        <span class="tpl-title">${tpl.name}</span>
+      `;
+
+      card.addEventListener('click', () => {
+        this.loadTemplate(tpl);
+      });
+
+      this.templatesGrid.appendChild(card);
+    });
+  }
+
+  loadTemplate(tpl) {
+    this.state.aspectRatio = tpl.aspectRatio || '1:1';
+    this.state.bgImage = SAMPLE_BACKGROUNDS[tpl.bg] || this.state.bgImage;
+
+    // Aspect ratio button sync
+    this.ratioChips.forEach(c => {
+      const active = c.dataset.ratio === this.state.aspectRatio;
+      c.classList.toggle('active', active);
+      c.setAttribute('aria-checked', active ? 'true' : 'false');
+    });
+
+    // Gradient
+    const gradPreset = GRADIENT_PRESETS.find(p => p.id === tpl.gradientPreset) || GRADIENT_PRESETS[0];
+    this.state.gradient = {
+      active: true,
+      presetId: gradPreset.id,
+      type: gradPreset.type,
+      angle: gradPreset.angle,
+      opacity: Math.round((tpl.gradientOpacity ?? gradPreset.opacity) * 100),
+      blendMode: gradPreset.blendMode,
+      stops: JSON.parse(JSON.stringify(gradPreset.stops))
+    };
+
+    // Logo
+    this.state.logo = {
+      active: true,
+      image: SAMPLE_LOGOS[tpl.logo] || SAMPLE_LOGOS['modern'],
+      x: tpl.logoPos.x,
+      y: tpl.logoPos.y,
+      size: tpl.logoPos.size,
+      radius: 0,
+      opacity: 100,
+      rotation: 0
+    };
+
+    // Text Layers
+    this.state.textLayers = tpl.textLayers.map((l, idx) => ({
+      ...l,
+      id: `text-${idx + 1}`
+    }));
+
+    this.selectTextLayer(this.state.textLayers[0]);
+    this.updateCanvasDimensions();
+    this.render();
+    this.switchTab('text');
+    this.showToast(`Loaded "${tpl.name}" template`);
+  }
+
+  updateLayersPanel() {
+    this.layersList.innerHTML = '';
+
+    // Text layers
+    this.state.textLayers.forEach((layer, idx) => {
+      const item = document.createElement('div');
+      const isSelected = this.selectedLayer && this.selectedLayer.id === layer.id;
+      item.className = `layer-item ${isSelected ? 'active' : ''}`;
+
+      item.innerHTML = `
+        <div class="layer-info">
+          <span class="layer-icon">✍️</span>
+          <span class="layer-name">Text: "${layer.text.substring(0, 16)}..."</span>
+        </div>
+        <div class="layer-actions">
+          <button class="layer-btn delete-btn" title="Delete Layer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      `;
+
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-btn')) {
+          if (this.state.textLayers.length <= 1) {
+            this.showToast('Post must have at least one text layer');
+            return;
+          }
+          this.state.textLayers.splice(idx, 1);
+          this.selectTextLayer(this.state.textLayers[0]);
+          this.render();
+          return;
+        }
+
+        this.selectTextLayer(layer);
+        this.switchTab('text');
+        this.render();
+      });
+
+      this.layersList.appendChild(item);
+    });
+
+    // Logo Layer
+    if (this.state.logo && this.state.logo.active) {
+      const item = document.createElement('div');
+      const isSelected = this.selectedLayer && this.selectedLayer.id === 'logo';
+      item.className = `layer-item ${isSelected ? 'active' : ''}`;
+
+      item.innerHTML = `
+        <div class="layer-info">
+          <span class="layer-icon">🏷️</span>
+          <span class="layer-name">Brand Logo Layer</span>
+        </div>
+      `;
+
+      item.addEventListener('click', () => {
+        this.selectLogoLayer();
+        this.switchTab('logo');
+        this.render();
+      });
+
+      this.layersList.appendChild(item);
+    }
+  }
+
+  showToast(message) {
+    this.toastEl.textContent = message;
+    this.toastEl.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => {
+      this.toastEl.classList.remove('show');
+    }, 2500);
+  }
+}
+
+// Instantiate on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  new App();
+});

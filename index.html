@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>StudioPost — Mobile Social Post Generator</title>
+  <meta name="description" content="A mobile-first creative studio to design striking social media posts with Fraunces typography, custom gradients, logos, and high-res PNG export.">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
+
+  <!-- Google Fonts: Fraunces (Variable font with opsz & wght) + Plus Jakarta Sans for UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-badge">
+          <span class="brand-sparkle">✦</span>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">StudioPost</h1>
+          <span class="brand-tagline">Fraunces Creator</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Quick Template / Reset -->
+        <button id="btnReset" class="icon-button" title="Reset to template" aria-label="Reset">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+
+        <!-- Export PNG button -->
+        <button id="btnExport" class="btn-primary" aria-label="Export PNG">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span class="btn-text">Export PNG</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Canvas Stage / Viewport -->
+    <main class="viewport-area">
+      <!-- Quick format bar above canvas -->
+      <div class="format-chips-bar" role="radiogroup" aria-label="Aspect Ratio">
+        <button class="chip active" data-ratio="1:1" aria-checked="true" role="radio">
+          <span class="ratio-icon square"></span>
+          <span>1:1 Post</span>
+        </button>
+        <button class="chip" data-ratio="9:16" aria-checked="false" role="radio">
+          <span class="ratio-icon story"></span>
+          <span>9:16 Story</span>
+        </button>
+        <button class="chip" data-ratio="4:5" aria-checked="false" role="radio">
+          <span class="ratio-icon portrait"></span>
+          <span>4:5 Portrait</span>
+        </button>
+        <button class="chip" data-ratio="16:9" aria-checked="false" role="radio">
+          <span class="ratio-icon landscape"></span>
+          <span>16:9 Banner</span>
+        </button>
+      </div>
+
+      <!-- Main Canvas Container with Interactive Overlay -->
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <div class="canvas-stage" id="canvasStage">
+          <!-- The live preview rendering canvas -->
+          <canvas id="previewCanvas"></canvas>
+          
+          <!-- Direct touch manipulation overlay (selection handles & bounds) -->
+          <div id="interactiveOverlay" class="interactive-overlay">
+            <div id="selectionBox" class="selection-box hidden">
+              <div class="handle handle-nw" data-handle="nw"></div>
+              <div class="handle handle-ne" data-handle="ne"></div>
+              <div class="handle handle-se" data-handle="se"></div>
+              <div class="handle handle-sw" data-handle="sw"></div>
+              <div class="handle-rotate" data-handle="rotate">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+              </div>
+              <div class="selection-tag" id="selectionTag">Text Layer</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-hint" id="canvasHint">
+          <span>Tap any element or use controls below to edit</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Mobile Drawer & Controls Dock -->
+    <section class="controls-dock" id="controlsDock">
+      <!-- Category Tabs (Horizontal scrollable on small screens) -->
+      <nav class="dock-tabs" id="dockTabs" role="tablist">
+        <button class="tab-btn active" data-tab="text" role="tab" aria-selected="true">
+          <span class="tab-icon">✍️</span>
+          <span class="tab-label">Text</span>
+        </button>
+        <button class="tab-btn" data-tab="gradient" role="tab" aria-selected="false">
+          <span class="tab-icon">🌈</span>
+          <span class="tab-label">Gradient</span>
+        </button>
+        <button class="tab-btn" data-tab="logo" role="tab" aria-selected="false">
+          <span class="tab-icon">🏷️</span>
+          <span class="tab-label">Logo</span>
+        </button>
+        <button class="tab-btn" data-tab="image" role="tab" aria-selected="false">
+          <span class="tab-icon">🖼️</span>
+          <span class="tab-label">Image</span>
+        </button>
+        <button class="tab-btn" data-tab="templates" role="tab" aria-selected="false">
+          <span class="tab-icon">✨</span>
+          <span class="tab-label">Presets</span>
+        </button>
+        <button class="tab-btn" data-tab="layers" role="tab" aria-selected="false">
+          <span class="tab-icon">📑</span>
+          <span class="tab-label">Layers</span>
+        </button>
+      </nav>
+
+      <!-- Tab Content Panels -->
+      <div class="panels-container">
+
+        <!-- PANEL: TEXT -->
+        <div class="panel active" id="panel-text" role="tabpanel">
+          <div class="panel-section">
+            <div class="section-row">
+              <label for="textInput" class="section-label">Typography & Content (Fraunces)</label>
+              <button id="btnAddTextLayer" class="pill-btn-small">+ Add Text</button>
+            </div>
+            <textarea id="textInput" class="text-input" rows="2" placeholder="Write your headline here..."></textarea>
+          </div>
+
+          <!-- Quick font style pills -->
+          <div class="panel-section">
+            <div class="slider-header">
+              <span class="control-name">Font Weight & Optical Size</span>
+              <span class="control-value" id="fontWeightValue">700</span>
+            </div>
+            <input type="range" id="fontWeightSlider" min="200" max="900" step="50" value="700" class="styled-slider">
+            <div class="weight-presets">
+              <button class="preset-pill" data-weight="300">Light</button>
+              <button class="preset-pill" data-weight="400">Regular</button>
+              <button class="preset-pill" data-weight="600">Semi</button>
+              <button class="preset-pill active" data-weight="700">Bold</button>
+              <button class="preset-pill" data-weight="900">Black</button>
+            </div>
+          </div>
+
+          <!-- Size & Alignment row -->
+          <div class="panel-grid-2">
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Font Size</span>
+                <span class="control-value" id="fontSizeValue">56px</span>
+              </div>
+              <input type="range" id="fontSizeSlider" min="16" max="140" step="1" value="56" class="styled-slider">
+            </div>
+
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Line Spacing</span>
+                <span class="control-value" id="lineHeightValue">1.15</span>
+              </div>
+              <input type="range" id="lineHeightSlider" min="0.8" max="2.0" step="0.05" value="1.15" class="styled-slider">
+            </div>
+          </div>
+
+          <!-- Alignment, Style Toggles & Colors -->
+          <div class="panel-section">
+            <div class="formatting-toolbar">
+              <!-- Text Align -->
+              <div class="segmented-control" id="textAlignControl">
+                <button class="segment-btn active" data-align="left" title="Left Align">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                </button>
+                <button class="segment-btn" data-align="center" title="Center Align">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="19" y1="12" x2="5" y2="12"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+                </button>
+                <button class="segment-btn" data-align="right" title="Right Align">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="12" x2="9" y2="12"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+                </button>
+              </div>
+
+              <!-- Italic & Shadow Toggles -->
+              <button id="btnToggleItalic" class="toggle-icon-btn" title="Toggle Italic">
+                <em>I</em>
+              </button>
+              <button id="btnToggleShadow" class="toggle-icon-btn active" title="Text Shadow / Readability Glow">
+                <span>✦ Glow</span>
+              </button>
+              <button id="btnToggleBadge" class="toggle-icon-btn" title="Highlight Badge Pill">
+                <span>🏷️ Pill</span>
+              </button>
+
+              <!-- Color picker -->
+              <div class="color-picker-wrapper" title="Text Color">
+                <input type="color" id="textColorPicker" value="#ffffff" class="color-input">
+                <div class="color-preview" id="textColorPreview" style="background: #ffffff;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: GRADIENT -->
+        <div class="panel" id="panel-gradient" role="tabpanel">
+          <div class="panel-section">
+            <div class="section-row">
+              <label class="section-label">Gradient Presets & Readability Overlays</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggleGradientActive" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            
+            <div class="gradient-presets-grid" id="gradientPresetsGrid">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <div class="panel-grid-2">
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Opacity</span>
+                <span class="control-value" id="gradientOpacityValue">80%</span>
+              </div>
+              <input type="range" id="gradientOpacitySlider" min="0" max="100" value="80" class="styled-slider">
+            </div>
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Angle / Direction</span>
+                <span class="control-value" id="gradientAngleValue">180°</span>
+              </div>
+              <input type="range" id="gradientAngleSlider" min="0" max="360" value="180" class="styled-slider">
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-row">
+              <span class="control-name">Custom Colors & Blend Mode</span>
+              <select id="gradientBlendMode" class="styled-select">
+                <option value="normal">Normal</option>
+                <option value="multiply">Multiply</option>
+                <option value="overlay">Overlay</option>
+                <option value="soft-light" selected>Soft Light</option>
+                <option value="screen">Screen</option>
+              </select>
+            </div>
+            <div class="gradient-colors-row">
+              <div class="color-picker-box">
+                <label>Top / Start</label>
+                <input type="color" id="gradStartColor" value="#000000" class="color-input">
+                <input type="range" id="gradStartAlpha" min="0" max="100" value="0" class="styled-slider mini">
+              </div>
+              <div class="color-picker-box">
+                <label>Bottom / End</label>
+                <input type="color" id="gradEndColor" value="#000000" class="color-input">
+                <input type="range" id="gradEndAlpha" min="0" max="100" value="90" class="styled-slider mini">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: LOGO -->
+        <div class="panel" id="panel-logo" role="tabpanel">
+          <div class="panel-section">
+            <div class="section-row">
+              <label class="section-label">Brand Logo Layer</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggleLogoActive" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Upload logo button -->
+            <div class="upload-dropzone">
+              <input type="file" id="logoFileInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" class="file-input-hidden">
+              <label for="logoFileInput" class="upload-btn-label">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Upload Logo (PNG / SVG)</span>
+              </label>
+              <div class="sample-logos-quick">
+                <span>Or use sample:</span>
+                <button class="sample-logo-chip" data-logo="modern">Minimal</button>
+                <button class="sample-logo-chip" data-logo="spark">Spark</button>
+                <button class="sample-logo-chip" data-logo="badge">Circle</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-grid-2">
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Logo Size</span>
+                <span class="control-value" id="logoSizeValue">120px</span>
+              </div>
+              <input type="range" id="logoSizeSlider" min="40" max="360" value="120" class="styled-slider">
+            </div>
+
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Corner Rounding</span>
+                <span class="control-value" id="logoRadiusValue">0px</span>
+              </div>
+              <input type="range" id="logoRadiusSlider" min="0" max="100" value="0" class="styled-slider">
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="slider-header">
+              <span class="control-name">Logo Opacity</span>
+              <span class="control-value" id="logoOpacityValue">100%</span>
+            </div>
+            <input type="range" id="logoOpacitySlider" min="10" max="100" value="100" class="styled-slider">
+            <div class="position-presets">
+              <span class="control-name">Quick Align:</span>
+              <button class="pos-btn" data-pos="top-left">Top-Left</button>
+              <button class="pos-btn" data-pos="top-right">Top-Right</button>
+              <button class="pos-btn" data-pos="bottom-left">Bottom-Left</button>
+              <button class="pos-btn" data-pos="bottom-right">Bottom-Right</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: IMAGE (BACKGROUND) -->
+        <div class="panel" id="panel-image" role="tabpanel">
+          <div class="panel-section">
+            <label class="section-label">Background Base Image</label>
+            <div class="upload-dropzone">
+              <input type="file" id="bgFileInput" accept="image/*" class="file-input-hidden">
+              <label for="bgFileInput" class="upload-btn-label">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>Upload Custom Image</span>
+              </label>
+              
+              <div class="sample-bg-quick">
+                <span>Curated Stock:</span>
+                <button class="sample-bg-chip" data-bg="gradient-dark">Dark Aura</button>
+                <button class="sample-bg-chip" data-bg="minimal-warm">Warm Clean</button>
+                <button class="sample-bg-chip" data-bg="cyber-night">Midnight</button>
+                <button class="sample-bg-chip" data-bg="editorial">Editorial</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Adjustments: Brightness, Contrast, Blur -->
+          <div class="panel-grid-2">
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Brightness</span>
+                <span class="control-value" id="bgBrightnessValue">100%</span>
+              </div>
+              <input type="range" id="bgBrightnessSlider" min="20" max="160" value="100" class="styled-slider">
+            </div>
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Contrast</span>
+                <span class="control-value" id="bgContrastValue">100%</span>
+              </div>
+              <input type="range" id="bgContrastSlider" min="50" max="180" value="100" class="styled-slider">
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="slider-header">
+              <span class="control-name">Atmospheric Blur</span>
+              <span class="control-value" id="bgBlurValue">0px</span>
+            </div>
+            <input type="range" id="bgBlurSlider" min="0" max="25" value="0" class="styled-slider">
+          </div>
+        </div>
+
+        <!-- PANEL: PRESETS / TEMPLATES -->
+        <div class="panel" id="panel-templates" role="tabpanel">
+          <div class="panel-section">
+            <label class="section-label">Instant Starter Templates</label>
+            <p class="section-subtitle">Click any template to load proven typography & layout combinations</p>
+            <div class="templates-grid" id="templatesGrid">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: LAYERS -->
+        <div class="panel" id="panel-layers" role="tabpanel">
+          <div class="panel-section">
+            <div class="section-row">
+              <label class="section-label">Active Canvas Layers</label>
+              <span class="section-subtitle">Tap layer to select & reorder</span>
+            </div>
+            <div class="layers-list" id="layersList">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Hidden Export Canvas (Offscreen render for ultra-crisp Retina export) -->
+    <canvas id="exportCanvas" style="display: none;"></canvas>
+
+    <!-- Toast notification for actions -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
