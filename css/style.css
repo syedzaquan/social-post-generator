@@ -107,6 +107,7 @@ html, body {
   justify-content: space-between;
   gap: 12px;
   pointer-events: none;
+  flex-wrap: wrap;
 }
 
 .floating-top-bar > * {
@@ -1494,10 +1495,6 @@ html, body {
     transform: translateX(calc(100% + 24px));
   }
 
-  .floating-controls-dock.collapsed ~ .fullscreen-viewport,
-  .app-container:has(.floating-controls-dock.collapsed) .fullscreen-viewport {
-    padding-right: 0;
-  }
 
   .dock-handle-bar {
     padding: 12px 18px 6px;

@@ -4,7 +4,7 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=2.9';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.0';
 import { TouchControls } from './touch-controls.js?v=2.9';
 import { 
   GRADIENT_PRESETS, 
@@ -240,19 +240,17 @@ class App {
 
     const winW = window.innerWidth;
     const winH = window.innerHeight;
-    const isDockCollapsed = this.controlsDock?.classList.contains('collapsed');
-
-    // On desktop, allocate comfortable space for the canvas workspace to the left of the dock
+    // The tools dock overlays the workspace; opening it must never resize the canvas.
     let availableW = winW;
     let availableH = winH;
 
     if (winW >= 960) {
-      const dockWidth = isDockCollapsed ? 0 : 380;
-      availableW = winW - dockWidth - 64; // generous margins
+      const dockWidth = 380;
+      availableW = winW - dockWidth - 64; // consistent workspace width
       availableH = winH - 84;
     } else {
       availableW = winW - 24;
-      availableH = isDockCollapsed ? winH - 96 : winH - 330;
+      availableH = winH - 330;
     }
 
     const targetRatio = ratioData.width / ratioData.height;

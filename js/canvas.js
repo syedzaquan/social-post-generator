@@ -7,6 +7,7 @@ export const ASPECT_RATIOS = {
   '1:1': { width: 1080, height: 1080, label: '1:1 Post' },
   '9:16': { width: 1080, height: 1920, label: '9:16 Story' },
   '4:5': { width: 1080, height: 1350, label: '4:5 Portrait' },
+  '3:4': { width: 1080, height: 1440, label: '3:4 Portrait' },
   '16:9': { width: 1920, height: 1080, label: '16:9 Banner' }
 };
 
@@ -23,6 +24,7 @@ export class CanvasRenderer {
 
     // Cache loaded images
     this.imageCache = new Map();
+    this.exportFontData = new Map();
   }
 
   setAspectRatio(ratioKey) {
@@ -62,6 +64,57 @@ export class CanvasRenderer {
       await document.fonts.ready;
     } catch (e) {
       console.warn('Font load check failed:', e);
+    }
+  }
+
+  async getExportFontData(style) {
+    const filename = style === 'italic' ? 'assets/Fraunces-Italic.ttf' : 'assets/Fraunces-Roman.ttf';
+    if (!this.exportFontData.has(filename)) {
+      this.exportFontData.set(filename, fetch(filename)
+        .then(response => response.ok ? response.arrayBuffer() : Promise.reject(new Error('Font unavailable')))
+        .then(buffer => {
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          const chunkSize = 0x8000;
+          for (let index = 0; index < bytes.length; index += chunkSize) {
+            binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+          }
+          return btoa(binary);
+        })
+        .catch(error => {
+          console.warn('Could not embed export font:', error);
+          return '';
+        }));
+    }
+    return this.exportFontData.get(filename);
+  }
+
+  escapeSvg(value) {
+    return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[character]));
+  }
+
+  async drawExportText(ctx, layer, bounds) {
+    const style = layer.italic ? 'italic' : 'normal';
+    const fontData = await this.getExportFontData(style);
+    const weight = layer.fontWeight ?? 350;
+    const fontSize = layer.fontSize || 72;
+    const soft = layer.soft ?? 100;
+    const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
+    const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
+    const anchor = (layer.align || 'center') === 'left' ? 'start' : (layer.align || 'center') === 'right' ? 'end' : 'middle';
+    const fontFace = fontData
+      ? `@font-face{font-family:ExportFraunces;src:url(data:font/ttf;base64,${fontData}) format('truetype');font-style:${style};font-weight:100 900;}`
+      : '';
+    const shadow = layer.hasShadow ? '<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.75"/></filter>' : '';
+    const tspans = bounds.lines.map((line, index) => `<tspan x="${layer.x}" dy="${index === 0 ? 0 : bounds.lineHeight}">${this.escapeSvg(line)}</tspan>`).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace}</style><defs>${shadow}</defs><text x="${layer.x}" y="${layer.y}" text-anchor="${anchor}" dominant-baseline="hanging" font-family="${fontData ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}" font-style="${style}" font-weight="${weight}" letter-spacing="${letterSpacing}" fill="${this.escapeSvg(layer.color || '#ffffff')}" style="font-variation-settings:'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
+    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    try {
+      const image = await this.loadImage(url);
+      if (image) ctx.drawImage(image, 0, 0, this.logicalWidth, this.logicalHeight);
+    } finally {
+      this.imageCache.delete(url);
+      URL.revokeObjectURL(url);
     }
   }
 
@@ -337,13 +390,13 @@ export class CanvasRenderer {
       const logoH = logoW * (defaultLogoImg.naturalHeight || defaultLogoImg.height) / (defaultLogoImg.naturalWidth || defaultLogoImg.width);
       const marginX = this.logicalWidth * 0.04;
       const marginY = this.logicalHeight * 0.04;
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 1;
 
-      // Subtle dropshadow
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 2;
+      // High-contrast, wider dropshadow for legibility on any background.
+      ctx.shadowColor = 'rgba(0, 0, 0, 1)';
+      ctx.shadowBlur = 84;
+      ctx.shadowOffsetX = -5;
+      ctx.shadowOffsetY = 0;
 
       ctx.drawImage(defaultLogoImg, marginX, marginY, logoW, logoH);
       ctx.restore();
@@ -358,7 +411,8 @@ export class CanvasRenderer {
         if (!layer.text || layer.visible === false) continue;
         const bounds = this.getTextBounds(ctx, layer);
 
-        // Native Canvas 2D text drawing ensures crisp typography without tainting the canvas
+        // Canvas text does not consistently honor Fraunces's SOFT axis. SVG does,
+        // so export text is rendered from the same variable-font settings as preview.
         ctx.save();
         if (layer.rotation) {
           const centerX = bounds.left + bounds.width / 2;
@@ -367,23 +421,8 @@ export class CanvasRenderer {
           ctx.rotate((layer.rotation * Math.PI) / 180);
           ctx.translate(-centerX, -centerY);
         }
-        const style = layer.italic ? 'italic' : 'normal';
-        const weight = layer.fontWeight ?? 350;
         const fontSize = layer.fontSize || 72;
-        const color = layer.color || '#ffffff';
-        const soft = layer.soft ?? 100;
-        const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
-        const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
 
-        ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
-        if ('fontVariationSettings' in ctx) {
-          ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0`;
-        }
-        if ('letterSpacing' in ctx) {
-          ctx.letterSpacing = `${letterSpacing}px`;
-        }
-        ctx.textBaseline = 'top';
-        ctx.textAlign = layer.align || 'center';
 
         // Badge pill
         if (layer.isBadge) {
@@ -402,20 +441,7 @@ export class CanvasRenderer {
           ctx.restore();
         }
 
-        // Glow
-        if (layer.hasShadow) {
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-          ctx.shadowBlur = Math.max(12, fontSize * 0.3);
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 4;
-        }
-
-        ctx.fillStyle = color;
-        let currentY = layer.y;
-        for (const line of bounds.lines) {
-          ctx.fillText(line, layer.x, currentY);
-          currentY += bounds.lineHeight;
-        }
+        await this.drawExportText(ctx, layer, bounds);
         ctx.restore();
       }
     }
