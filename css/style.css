@@ -470,7 +470,7 @@ html, body {
   bottom: 0;
   width: 1.5px;
   background: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.9), 0 0 2px #fff;
+  box-shadow: none;
   transform: translateX(-50%);
 }
 
@@ -479,7 +479,7 @@ html, body {
   right: 0;
   height: 1.5px;
   background: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.9), 0 0 2px #fff;
+  box-shadow: none;
   transform: translateY(-50%);
 }
 
@@ -599,6 +599,13 @@ html, body {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%) translateY(20px);
+}
+
+/* Keep the mobile tools button above browser chrome at the bottom of the screen. */
+@media (max-width: 959px) {
+  .floating-expand-pill {
+    bottom: max(72px, calc(20px + env(safe-area-inset-bottom, 0px)));
+  }
 }
 
 .dock-handle-bar {

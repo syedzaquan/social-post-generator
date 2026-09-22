@@ -1126,7 +1126,6 @@ class App {
           const reader = new FileReader();
           reader.onload = (ev) => {
             this.state.bgImage = ev.target.result;
-            this.saveHistory();
             this.render();
             this.showToast('Background image set! 🖼️');
           };
@@ -1149,7 +1148,6 @@ class App {
         const key = chip.dataset.bg;
         if (SAMPLE_BACKGROUNDS[key]) {
           this.state.bgImage = SAMPLE_BACKGROUNDS[key];
-          this.saveHistory();
           this.render();
           this.showToast(`Applied ${chip.textContent}`);
         }
