@@ -98,11 +98,11 @@ export class CanvasRenderer {
   // Calculate text layer bounding box in logical canvas coordinates
   getTextBounds(ctx, layer) {
     const style = layer.italic ? 'italic' : 'normal';
-    const weight = layer.fontWeight || 400;
-    const fontSize = layer.fontSize || 54;
-    const soft = layer.soft ?? 50;
+    const weight = layer.fontWeight ?? 350;
+    const fontSize = layer.fontSize || 72;
+    const soft = layer.soft ?? 100;
     const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
-    const letterSpacing = layer.letterSpacing || 0;
+    const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
 
     ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
     if ('fontVariationSettings' in ctx) {
@@ -131,9 +131,10 @@ export class CanvasRenderer {
 
     // Adjust x for alignment
     let left = x;
-    if (layer.align === 'center') {
+    const align = layer.align || 'center';
+    if (align === 'center') {
       left = x - maxLineWidth / 2;
-    } else if (layer.align === 'right') {
+    } else if (align === 'right') {
       left = x - maxLineWidth;
     }
 
@@ -157,6 +158,31 @@ export class CanvasRenderer {
       top: layer.y - size / 2,
       width: size,
       height: size
+    };
+  }
+
+  // Calculate image layer bounds in logical canvas coordinates (preserving natural aspect ratio)
+  getImageBounds(layer, img = null) {
+    let aspect = layer.aspectRatio;
+    if (!aspect && img && img.naturalWidth && img.naturalHeight) {
+      aspect = img.naturalWidth / img.naturalHeight;
+      layer.aspectRatio = aspect;
+    }
+    aspect = aspect || 1;
+    const size = layer.size || 300;
+    let width, height;
+    if (aspect >= 1) {
+      width = size;
+      height = size / aspect;
+    } else {
+      height = size;
+      width = size * aspect;
+    }
+    return {
+      left: layer.x - width / 2,
+      top: layer.y - height / 2,
+      width,
+      height
     };
   }
 
@@ -271,7 +297,43 @@ export class CanvasRenderer {
       ctx.restore();
     }
 
-    // 3. Render Brand Logo Layer
+    // 3. Render Image Layers
+    if (state.imageLayers && state.imageLayers.length > 0) {
+      for (const layer of state.imageLayers) {
+        if (!layer.image || layer.visible === false) continue;
+        ctx.save();
+        const img = await this.loadImage(layer.image);
+        if (img) {
+          const bounds = this.getImageBounds(layer, img);
+          const opacity = Math.max(0, Math.min(1, (layer.opacity ?? 100) / 100));
+          ctx.globalAlpha = opacity;
+
+          const radius = Math.min((layer.radius ?? 0), Math.min(bounds.width, bounds.height) / 2);
+
+          ctx.translate(layer.x, layer.y);
+          if (layer.rotation) {
+            ctx.rotate((layer.rotation * Math.PI) / 180);
+          }
+
+          const halfW = bounds.width / 2;
+          const halfH = bounds.height / 2;
+          if (radius > 0) {
+            ctx.beginPath();
+            if (ctx.roundRect) {
+              ctx.roundRect(-halfW, -halfH, bounds.width, bounds.height, radius);
+            } else {
+              ctx.rect(-halfW, -halfH, bounds.width, bounds.height);
+            }
+            ctx.clip();
+          }
+
+          ctx.drawImage(img, -halfW, -halfH, bounds.width, bounds.height);
+        }
+        ctx.restore();
+      }
+    }
+
+    // 4. Render Brand Logo Layer
     if (state.logo && state.logo.active && state.logo.image) {
       ctx.save();
       const logoImg = await this.loadImage(state.logo.image);
@@ -318,12 +380,12 @@ export class CanvasRenderer {
           ctx.translate(-centerX, -centerY);
         }
         const style = layer.italic ? 'italic' : 'normal';
-        const weight = layer.fontWeight || 400;
-        const fontSize = layer.fontSize || 54;
+        const weight = layer.fontWeight ?? 350;
+        const fontSize = layer.fontSize || 72;
         const color = layer.color || '#ffffff';
-        const soft = layer.soft ?? 50;
+        const soft = layer.soft ?? 100;
         const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
-        const letterSpacing = layer.letterSpacing || 0;
+        const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
 
         ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
         if ('fontVariationSettings' in ctx) {
@@ -333,7 +395,7 @@ export class CanvasRenderer {
           ctx.letterSpacing = `${letterSpacing}px`;
         }
         ctx.textBaseline = 'top';
-        ctx.textAlign = layer.align || 'left';
+        ctx.textAlign = layer.align || 'center';
 
         // Badge pill
         if (layer.isBadge) {

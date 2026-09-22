@@ -4,14 +4,23 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js';
-import { TouchControls } from './touch-controls.js';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=2.6';
+import { TouchControls } from './touch-controls.js?v=2.6';
 import { 
   GRADIENT_PRESETS, 
   SAMPLE_BACKGROUNDS, 
   SAMPLE_LOGOS, 
   STARTER_TEMPLATES 
-} from './presets.js';
+} from './presets.js?v=2.6';
+
+// Self-contained sample sticker graphics (prevents browser module caching errors)
+export const SAMPLE_STICKERS = {
+  'star': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="%23fbbf24" stroke="%23d97706" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+  'verified': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="%230ea5e9"/><path d="m9 12 2 2 4-4" fill="none" stroke="%23ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  'sparkle': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="%23c084fc"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>`,
+  'tag': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="%23f43f5e"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><circle cx="7" cy="7" r="2" fill="%23ffffff"/></svg>`,
+  'heart': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="%23ef4444"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`
+};
 
 class App {
   constructor() {
@@ -106,6 +115,26 @@ class App {
     this.btnResetLogoRotation = document.getElementById('btnResetLogoRotation');
     this.logoPosBtns = document.querySelectorAll('.pos-btn');
 
+    // Image Layer Controls
+    this.btnAddImageLayer = document.getElementById('btnAddImageLayer');
+    this.btnAddImageLayerFromLayers = document.getElementById('btnAddImageLayerFromLayers');
+    this.btnAddTextLayerFromLayers = document.getElementById('btnAddTextLayerFromLayers');
+    this.imageLayerFileInput = document.getElementById('imageLayerFileInput');
+    this.activeImgLayerControls = document.getElementById('activeImgLayerControls');
+    this.imgLayerSizeSlider = document.getElementById('imgLayerSizeSlider');
+    this.imgLayerSizeValue = document.getElementById('imgLayerSizeValue');
+    this.imgLayerRadiusSlider = document.getElementById('imgLayerRadiusSlider');
+    this.imgLayerRadiusValue = document.getElementById('imgLayerRadiusValue');
+    this.imgLayerOpacitySlider = document.getElementById('imgLayerOpacitySlider');
+    this.imgLayerOpacityValue = document.getElementById('imgLayerOpacityValue');
+    this.imgLayerRotationSlider = document.getElementById('imgLayerRotationSlider');
+    this.imgLayerRotationValue = document.getElementById('imgLayerRotationValue');
+    this.btnResetImgLayerRotation = document.getElementById('btnResetImgLayerRotation');
+    this.btnDuplicateImgLayer = document.getElementById('btnDuplicateImgLayer');
+    this.btnDeleteImgLayer = document.getElementById('btnDeleteImgLayer');
+    this.imgPosBtns = document.querySelectorAll('[data-imgpos]');
+    this.sampleImgChips = document.querySelectorAll('.sample-img-chip');
+
     // Background Image Controls
     this.bgFileInput = document.getElementById('bgFileInput');
     this.bgBrightnessSlider = document.getElementById('bgBrightnessSlider');
@@ -176,23 +205,24 @@ class App {
         opacity: 100,
         rotation: 0
       },
+      imageLayers: [],
       textLayers: [
         {
           id: 'text-1',
           text: 'Design with intention, craft with soul.',
-          fontSize: 58,
-          fontWeight: 400, // DEFAULT: 400
+          fontSize: 72,
+          fontWeight: 350, // DEFAULT: 350
           fontOpsz: 72,
-          soft: 50, // DEFAULT: SOFT 50
-          letterSpacing: 0, 
+          soft: 100, // DEFAULT: SOFT 100
+          letterSpacing: -1, 
           lineHeight: 1.16,
-          align: 'left',
+          align: 'center',
           color: '#ffffff',
-          italic: true, // DEFAULT: ITALIC
+          italic: false, // DEFAULT: NON-ITALIC
           hasShadow: false, // DEFAULT: NO GLOW
           isBadge: false,
-          x: 90,
-          y: 540
+          x: 540,
+          y: 520
         }
       ]
     };
@@ -304,13 +334,13 @@ class App {
       div.style.height = `${screenPos.height}px`;
       div.style.fontFamily = "'Fraunces', serif";
       div.style.fontStyle = layer.italic ? 'italic' : 'normal';
-      div.style.fontWeight = layer.fontWeight || 400;
-      div.style.fontSize = `${(layer.fontSize || 54) * scale}px`;
-      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 50}, 'opsz' ${layer.fontOpsz ?? 72}, 'wght' ${layer.fontWeight || 400}, 'WONK' 0`;
-      div.style.letterSpacing = `${(layer.letterSpacing || 0) * scale}px`;
+      div.style.fontWeight = layer.fontWeight ?? 350;
+      div.style.fontSize = `${(layer.fontSize || 72) * scale}px`;
+      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? 72}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
+      div.style.letterSpacing = `${(layer.letterSpacing !== undefined ? layer.letterSpacing : -1) * scale}px`;
       div.style.lineHeight = layer.lineHeight || 1.15;
       div.style.color = layer.color || '#ffffff';
-      div.style.textAlign = layer.align || 'left';
+      div.style.textAlign = layer.align || 'center';
 
       if (layer.hasShadow) {
         div.style.textShadow = `0 ${4 * scale}px ${12 * scale}px rgba(0, 0, 0, 0.85)`;
@@ -355,6 +385,9 @@ class App {
     if (this.selectedLayer.id === 'logo') {
       const bounds = this.renderer.getLogoBounds(this.state.logo);
       this.touchControls.select('logo', this.state.logo, bounds);
+    } else if (this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+      const bounds = this.renderer.getImageBounds(this.selectedLayer);
+      this.touchControls.select('image', this.selectedLayer, bounds);
     } else {
       const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, this.selectedLayer);
       this.touchControls.select('text', this.selectedLayer, bounds);
@@ -376,7 +409,7 @@ class App {
       }
     }
 
-    // 1. Text layers
+    // 1. Text layers (top-most first)
     for (let i = this.state.textLayers.length - 1; i >= 0; i--) {
       const layer = this.state.textLayers[i];
       const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, layer);
@@ -393,7 +426,27 @@ class App {
       }
     }
 
-    // 2. Logo layer
+    // 2. Image layers (top-most first)
+    if (this.state.imageLayers && this.state.imageLayers.length > 0) {
+      for (let i = this.state.imageLayers.length - 1; i >= 0; i--) {
+        const layer = this.state.imageLayers[i];
+        if (layer.visible === false) continue;
+        const bounds = this.renderer.getImageBounds(layer);
+        if (
+          canvasX >= bounds.left &&
+          canvasX <= bounds.left + bounds.width &&
+          canvasY >= bounds.top &&
+          canvasY <= bounds.top + bounds.height
+        ) {
+          this.selectImageLayer(layer);
+          this.switchTab('image-layer');
+          this.render();
+          return { type: 'image', layer };
+        }
+      }
+    }
+
+    // 3. Logo layer
     if (this.state.logo && this.state.logo.active) {
       const logoBounds = this.renderer.getLogoBounds(this.state.logo);
       if (
@@ -415,7 +468,7 @@ class App {
   onLayerModifiedByGesture() {
     this.syncControlsFromState();
     this.updateDOMTextOverlay();
-    if (this.selectedLayer && this.selectedLayer.id === 'logo') {
+    if (this.selectedLayer && (this.selectedLayer.id === 'logo' || (this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')))) {
       this.renderer.render(this.state, 'preview');
     }
   }
@@ -430,6 +483,78 @@ class App {
     this.selectedLayer = { id: 'logo' };
     this.syncControlsFromState();
     this.updateSelectionBox();
+  }
+
+  selectImageLayer(layer) {
+    this.selectedLayer = layer;
+    this.syncControlsFromState();
+    this.updateSelectionBox();
+  }
+
+  addImageLayer(imageDataUrl, name = 'Image Layer') {
+    if (!imageDataUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      const aspect = (img.naturalWidth && img.naturalHeight) ? (img.naturalWidth / img.naturalHeight) : 1;
+      const initialSize = 320;
+      const newLayer = {
+        id: `img-${Date.now()}`,
+        name: name || 'Image Layer',
+        image: imageDataUrl,
+        aspectRatio: aspect,
+        x: Math.round(this.renderer.logicalWidth / 2),
+        y: Math.round(this.renderer.logicalHeight / 2),
+        size: initialSize,
+        opacity: 100,
+        radius: 0,
+        rotation: 0,
+        visible: true
+      };
+      if (!this.state.imageLayers) {
+        this.state.imageLayers = [];
+      }
+      this.state.imageLayers.push(newLayer);
+      this.selectImageLayer(newLayer);
+      this.switchTab('image-layer');
+      this.render();
+      this.showToast('Added image layer');
+    };
+    img.src = imageDataUrl;
+  }
+
+  deleteSelectedImageLayer() {
+    if (!this.selectedLayer || !this.selectedLayer.id || !this.selectedLayer.id.startsWith('img-')) return;
+    const idx = this.state.imageLayers.findIndex(l => l.id === this.selectedLayer.id);
+    if (idx !== -1) {
+      this.state.imageLayers.splice(idx, 1);
+      if (this.state.imageLayers.length > 0) {
+        this.selectImageLayer(this.state.imageLayers[Math.max(0, idx - 1)]);
+      } else if (this.state.textLayers.length > 0) {
+        this.selectTextLayer(this.state.textLayers[0]);
+        this.switchTab('text');
+      } else {
+        this.selectedLayer = null;
+        this.updateSelectionBox();
+      }
+      this.render();
+      this.showToast('Deleted image layer');
+    }
+  }
+
+  duplicateSelectedImageLayer() {
+    if (!this.selectedLayer || !this.selectedLayer.id || !this.selectedLayer.id.startsWith('img-')) return;
+    const l = this.selectedLayer;
+    const newLayer = {
+      ...l,
+      id: `img-${Date.now()}`,
+      name: `${l.name || 'Image'} (Copy)`,
+      x: Math.min(this.renderer.logicalWidth - 50, (l.x || 540) + 35),
+      y: Math.min(this.renderer.logicalHeight - 50, (l.y || 540) + 35)
+    };
+    this.state.imageLayers.push(newLayer);
+    this.selectImageLayer(newLayer);
+    this.render();
+    this.showToast('Duplicated image layer');
   }
 
   switchTab(tabName) {
@@ -462,29 +587,29 @@ class App {
 
   syncControlsFromState() {
     // Text controls & Fraunces variable axes
-    if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+    if (this.selectedLayer && this.selectedLayer.id !== 'logo' && !this.selectedLayer.id.startsWith('img-')) {
       const l = this.selectedLayer;
       this.textInput.value = l.text || '';
       
       // SOFT Axis
-      this.softSlider.value = l.soft ?? 50;
-      this.softValue.textContent = l.soft ?? 50;
+      this.softSlider.value = l.soft ?? 100;
+      this.softValue.textContent = l.soft ?? 100;
 
       // Optical Size
       this.opszSlider.value = l.fontOpsz ?? 72;
       this.opszValue.textContent = l.fontOpsz ?? 72;
 
       // Font Weight
-      this.fontWeightSlider.value = l.fontWeight || 400;
-      this.fontWeightValue.textContent = l.fontWeight || 400;
+      this.fontWeightSlider.value = l.fontWeight ?? 350;
+      this.fontWeightValue.textContent = l.fontWeight ?? 350;
 
       // Size & Spacing
-      this.fontSizeSlider.value = l.fontSize || 54;
-      this.fontSizeValue.textContent = `${l.fontSize}px`;
+      this.fontSizeSlider.value = l.fontSize || 72;
+      this.fontSizeValue.textContent = `${l.fontSize || 72}px`;
       this.lineHeightSlider.value = l.lineHeight || 1.15;
       this.lineHeightValue.textContent = (l.lineHeight || 1.15).toFixed(2);
-      this.letterSpacingSlider.value = l.letterSpacing || 0;
-      this.letterSpacingValue.textContent = `${l.letterSpacing || 0}px`;
+      this.letterSpacingSlider.value = l.letterSpacing !== undefined ? l.letterSpacing : -1;
+      this.letterSpacingValue.textContent = `${l.letterSpacing !== undefined ? l.letterSpacing : -1}px`;
       if (this.textRotationSlider) {
         this.textRotationSlider.value = l.rotation || 0;
         this.textRotationValue.textContent = `${l.rotation || 0}°`;
@@ -494,7 +619,7 @@ class App {
       this.textColorPreview.style.background = l.color || '#ffffff';
 
       this.textAlignBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.align === (l.align || 'left'));
+        btn.classList.toggle('active', btn.dataset.align === (l.align || 'center'));
       });
 
       this.btnToggleItalic.classList.toggle('active', !!l.italic);
@@ -502,7 +627,7 @@ class App {
       this.btnToggleBadge.classList.toggle('active', !!l.isBadge);
 
       this.weightPresetBtns.forEach(btn => {
-        btn.classList.toggle('active', Number(btn.dataset.weight) === Number(l.fontWeight || 400));
+        btn.classList.toggle('active', Number(btn.dataset.weight) === Number(l.fontWeight ?? 350));
       });
     }
 
@@ -518,6 +643,34 @@ class App {
       if (this.logoRotationSlider) {
         this.logoRotationSlider.value = this.state.logo.rotation || 0;
         this.logoRotationValue.textContent = `${this.state.logo.rotation || 0}°`;
+      }
+    }
+
+    // Image layer controls
+    if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+      const l = this.selectedLayer;
+      if (this.activeImgLayerControls) {
+        this.activeImgLayerControls.classList.remove('hidden');
+      }
+      if (this.imgLayerSizeSlider) {
+        this.imgLayerSizeSlider.value = l.size || 320;
+        this.imgLayerSizeValue.textContent = `${l.size || 320}px`;
+      }
+      if (this.imgLayerRadiusSlider) {
+        this.imgLayerRadiusSlider.value = l.radius || 0;
+        this.imgLayerRadiusValue.textContent = `${l.radius || 0}px`;
+      }
+      if (this.imgLayerOpacitySlider) {
+        this.imgLayerOpacitySlider.value = l.opacity ?? 100;
+        this.imgLayerOpacityValue.textContent = `${l.opacity ?? 100}%`;
+      }
+      if (this.imgLayerRotationSlider) {
+        this.imgLayerRotationSlider.value = l.rotation || 0;
+        this.imgLayerRotationValue.textContent = `${l.rotation || 0}°`;
+      }
+    } else {
+      if (this.activeImgLayerControls && (!this.state.imageLayers || this.state.imageLayers.length === 0)) {
+        this.activeImgLayerControls.classList.add('hidden');
       }
     }
 
@@ -760,18 +913,18 @@ class App {
       const newLayer = {
         id: `text-${Date.now()}`,
         text: 'New Fraunces Text',
-        fontSize: 42,
-        fontWeight: 400, // DEFAULT 400
-        fontOpsz: 48,
-        soft: 50,
-        letterSpacing: 0,
+        fontSize: 72,
+        fontWeight: 350, // DEFAULT 350
+        fontOpsz: 72,
+        soft: 100,
+        letterSpacing: -1,
         lineHeight: 1.2,
-        align: 'left',
+        align: 'center',
         color: '#ffffff',
-        italic: true, // DEFAULT ITALIC
+        italic: false, // DEFAULT NON-ITALIC
         hasShadow: false, // DEFAULT: NO GLOW
         isBadge: false,
-        x: 100,
+        x: Math.round(this.renderer.logicalWidth / 2),
         y: 400 + Math.random() * 80
       };
       this.state.textLayers.push(newLayer);
@@ -875,12 +1028,14 @@ class App {
           this.state.logo.image = ev.target.result;
           this.state.logo.active = true;
           this.toggleLogoActive.checked = true;
+          this.saveHistory();
           this.selectLogoLayer();
           this.render();
           this.showToast('Brand logo uploaded! 🏷️');
         };
         reader.readAsDataURL(file);
       }
+      e.target.value = '';
     });
 
     document.querySelectorAll('.sample-logo-chip').forEach(chip => {
@@ -965,25 +1120,186 @@ class App {
       });
     });
 
-    // Background Image Upload & Filters
-    this.bgFileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          this.state.bgImage = ev.target.result;
-          this.render();
-          this.showToast('Background uploaded! 🖼️');
-        };
-        reader.readAsDataURL(file);
-      }
+    // Image Layers Events
+    if (this.imageLayerFileInput) {
+      this.imageLayerFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const cleanName = file.name.replace(/\.[^/.]+$/, "");
+            this.addImageLayer(ev.target.result, cleanName);
+          };
+          reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+      });
+    }
+
+    if (this.btnAddImageLayer) {
+      this.btnAddImageLayer.addEventListener('click', () => {
+        if (this.imageLayerFileInput) this.imageLayerFileInput.click();
+      });
+    }
+
+    if (this.btnAddImageLayerFromLayers) {
+      this.btnAddImageLayerFromLayers.addEventListener('click', () => {
+        if (this.imageLayerFileInput) this.imageLayerFileInput.click();
+      });
+    }
+
+    if (this.btnAddTextLayerFromLayers) {
+      this.btnAddTextLayerFromLayers.addEventListener('click', () => {
+        this.btnAddTextLayer.click();
+      });
+    }
+
+    this.sampleImgChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.dataset.sample;
+        if (SAMPLE_STICKERS && SAMPLE_STICKERS[key]) {
+          this.addImageLayer(SAMPLE_STICKERS[key], chip.textContent.trim());
+        }
+      });
     });
+
+    if (this.imgLayerSizeSlider) {
+      this.imgLayerSizeSlider.addEventListener('input', (e) => {
+        if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+          const val = Number(e.target.value);
+          this.selectedLayer.size = val;
+          this.imgLayerSizeValue.textContent = `${val}px`;
+          this.updateSelectionBox();
+          this.render();
+        }
+      });
+    }
+
+    if (this.imgLayerRadiusSlider) {
+      this.imgLayerRadiusSlider.addEventListener('input', (e) => {
+        if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+          const val = Number(e.target.value);
+          this.selectedLayer.radius = val;
+          this.imgLayerRadiusValue.textContent = `${val}px`;
+          this.render();
+        }
+      });
+    }
+
+    if (this.imgLayerOpacitySlider) {
+      this.imgLayerOpacitySlider.addEventListener('input', (e) => {
+        if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+          const val = Number(e.target.value);
+          this.selectedLayer.opacity = val;
+          this.imgLayerOpacityValue.textContent = `${val}%`;
+          this.render();
+        }
+      });
+    }
+
+    if (this.imgLayerRotationSlider) {
+      this.imgLayerRotationSlider.addEventListener('input', (e) => {
+        if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+          const val = parseInt(e.target.value, 10) || 0;
+          this.selectedLayer.rotation = val;
+          this.imgLayerRotationValue.textContent = `${val}°`;
+          this.updateSelectionBox();
+          this.render();
+        }
+      });
+    }
+
+    if (this.btnResetImgLayerRotation) {
+      this.btnResetImgLayerRotation.addEventListener('click', () => {
+        if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+          this.selectedLayer.rotation = 0;
+          if (this.imgLayerRotationSlider) this.imgLayerRotationSlider.value = 0;
+          if (this.imgLayerRotationValue) this.imgLayerRotationValue.textContent = '0°';
+          this.updateSelectionBox();
+          this.render();
+        }
+      });
+    }
+
+    if (this.btnDuplicateImgLayer) {
+      this.btnDuplicateImgLayer.addEventListener('click', () => {
+        this.duplicateSelectedImageLayer();
+      });
+    }
+
+    if (this.btnDeleteImgLayer) {
+      this.btnDeleteImgLayer.addEventListener('click', () => {
+        this.deleteSelectedImageLayer();
+      });
+    }
+
+    // Quick Image Position Presets
+    this.imgPosBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!this.selectedLayer || !this.selectedLayer.id || !this.selectedLayer.id.startsWith('img-')) return;
+        const pos = btn.dataset.imgpos;
+        const width = this.renderer.logicalWidth;
+        const height = this.renderer.logicalHeight;
+        const bounds = this.renderer.getImageBounds(this.selectedLayer);
+        const marginX = Math.round(width * 0.05);
+        const marginY = Math.round(height * 0.05);
+        const halfW = bounds.width / 2;
+        const halfH = bounds.height / 2;
+
+        if (pos === 'top-left') {
+          this.selectedLayer.x = marginX + halfW;
+          this.selectedLayer.y = marginY + halfH;
+        } else if (pos === 'top-right') {
+          this.selectedLayer.x = width - marginX - halfW;
+          this.selectedLayer.y = marginY + halfH;
+        } else if (pos === 'center') {
+          this.selectedLayer.x = Math.round(width / 2);
+          this.selectedLayer.y = Math.round(height / 2);
+        } else if (pos === 'bottom-left') {
+          this.selectedLayer.x = marginX + halfW;
+          this.selectedLayer.y = height - marginY - halfH;
+        } else if (pos === 'bottom-right') {
+          this.selectedLayer.x = width - marginX - halfW;
+          this.selectedLayer.y = height - marginY - halfH;
+        }
+        this.updateSelectionBox();
+        this.render();
+        this.showToast(`Positioned image layer`);
+      });
+    });
+
+    // Background Image Upload & Filters
+    if (this.bgFileInput) {
+      this.bgFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            this.state.bgImage = ev.target.result;
+            this.saveHistory();
+            this.render();
+            this.showToast('Background image set! 🖼️');
+          };
+          reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+      });
+    }
+
+    const btnSwitchToOverlay = document.getElementById('btnSwitchToOverlay');
+    if (btnSwitchToOverlay) {
+      btnSwitchToOverlay.addEventListener('click', () => {
+        this.switchTab('image-layer');
+        if (this.imageLayerFileInput) this.imageLayerFileInput.click();
+      });
+    }
 
     document.querySelectorAll('.sample-bg-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const key = chip.dataset.bg;
         if (SAMPLE_BACKGROUNDS[key]) {
           this.state.bgImage = SAMPLE_BACKGROUNDS[key];
+          this.saveHistory();
           this.render();
           this.showToast(`Applied ${chip.textContent}`);
         }
@@ -1130,12 +1446,13 @@ class App {
       rotation: 0
     };
 
+    this.state.imageLayers = [];
     this.state.textLayers = tpl.textLayers.map((l, idx) => ({
       ...l,
-      soft: l.soft ?? 50,
-      fontWeight: l.fontWeight || 400, // DEFAULT 400
-      italic: l.italic !== undefined ? l.italic : true, // DEFAULT ITALIC
-      letterSpacing: l.letterSpacing || 0,
+      soft: l.soft ?? 100,
+      fontWeight: l.fontWeight ?? 350, // DEFAULT 350
+      italic: l.italic !== undefined ? l.italic : false, // DEFAULT NON-ITALIC
+      letterSpacing: l.letterSpacing !== undefined ? l.letterSpacing : -1,
       id: `text-${idx + 1}`
     }));
 
@@ -1187,6 +1504,52 @@ class App {
 
       this.layersList.appendChild(item);
     });
+
+    // Image layers
+    if (this.state.imageLayers && this.state.imageLayers.length > 0) {
+      this.state.imageLayers.forEach((layer, idx) => {
+        const item = document.createElement('div');
+        const isSelected = this.selectedLayer && this.selectedLayer.id === layer.id;
+        item.className = `layer-item ${isSelected ? 'active' : ''}`;
+
+        item.innerHTML = `
+          <div class="layer-info">
+            <img class="layer-thumb" src="${layer.image}" alt="${layer.name || 'Image'}">
+            <span class="layer-name">${layer.name || 'Image Layer'}</span>
+          </div>
+          <div class="layer-actions">
+            <button class="layer-btn delete-btn" title="Delete Layer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        `;
+
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.delete-btn')) {
+            this.state.imageLayers.splice(idx, 1);
+            if (this.selectedLayer && this.selectedLayer.id === layer.id) {
+              if (this.state.imageLayers.length > 0) {
+                this.selectImageLayer(this.state.imageLayers[Math.max(0, idx - 1)]);
+              } else if (this.state.textLayers.length > 0) {
+                this.selectTextLayer(this.state.textLayers[0]);
+              } else {
+                this.selectedLayer = null;
+                this.updateSelectionBox();
+              }
+            }
+            this.render();
+            this.showToast('Deleted image layer');
+            return;
+          }
+
+          this.selectImageLayer(layer);
+          this.switchTab('image-layer');
+          this.render();
+        });
+
+        this.layersList.appendChild(item);
+      });
+    }
 
     // Logo Layer
     if (this.state.logo && this.state.logo.active) {
