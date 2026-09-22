@@ -4,13 +4,13 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=2.8';
-import { TouchControls } from './touch-controls.js?v=2.8';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=2.9';
+import { TouchControls } from './touch-controls.js?v=2.9';
 import { 
   GRADIENT_PRESETS, 
   SAMPLE_BACKGROUNDS, 
   STARTER_TEMPLATES 
-} from './presets.js?v=2.8';
+} from './presets.js?v=2.9';
 
 // Self-contained sample sticker graphics (prevents browser module caching errors)
 export const SAMPLE_STICKERS = {

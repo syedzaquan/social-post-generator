@@ -158,6 +158,18 @@ export class TouchControls {
     }
   }
 
+  // Keep handles in sync while dragging, including browsers that defer DOM layout
+  // updates until after a touch event (notably iOS Safari).
+  updateCachedDragBounds(nextX, nextY) {
+    if (!this.initialBounds || !this.initialLayerState) return;
+
+    this.cachedBounds = {
+      ...this.initialBounds,
+      left: this.initialBounds.left + (nextX - this.initialLayerState.x),
+      top: this.initialBounds.top + (nextY - this.initialLayerState.y)
+    };
+  }
+
   // ==========================================
   // Touch Event Handling (Pinch & Move)
   // ==========================================
@@ -288,6 +300,7 @@ export class TouchControls {
       this.activeHandle = handleEl.dataset.handle;
       this.dragStart = coords;
       this.initialLayerState = { ...this.activeLayer };
+      this.initialBounds = this.cachedBounds ? { ...this.cachedBounds } : null;
       if (this.activeHandle === 'rotate') {
         const center = this.getLayerCenter();
         this.initialAngle = Math.atan2(coords.y - center.y, coords.x - center.x) * (180 / Math.PI);
@@ -301,6 +314,7 @@ export class TouchControls {
       this.isDragging = true;
       this.dragStart = coords;
       this.initialLayerState = { ...this.activeLayer };
+      this.initialBounds = this.cachedBounds ? { ...this.cachedBounds } : null;
       return;
     }
 
@@ -311,6 +325,7 @@ export class TouchControls {
         this.isDragging = true;
         this.dragStart = coords;
         this.initialLayerState = { ...hit.layer };
+        this.initialBounds = this.cachedBounds ? { ...this.cachedBounds } : null;
         return;
       }
     }
@@ -347,8 +362,9 @@ export class TouchControls {
       this.activeLayer.x = snapped.x;
       this.activeLayer.y = snapped.y;
 
-      this.onLayerChange();
+      this.updateCachedDragBounds(snapped.x, snapped.y);
       this.updateSelectionBounds();
+      this.onLayerChange();
     }
     // Resizing layer via corner handles or rotate handle
     else if (this.isResizing) {
