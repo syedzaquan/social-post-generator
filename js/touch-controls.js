@@ -131,7 +131,7 @@ export class TouchControls {
     }
 
     this.selectionBox.classList.remove('hidden');
-    this.selectionTag.textContent = type === 'logo' ? 'Brand Logo' : type === 'image' ? (layer.name || 'Image Layer') : 'Text Layer';
+    this.selectionTag.textContent = type === 'image' ? (layer.name || 'Image Layer') : 'Text Layer';
     this.updateSelectionBounds();
   }
 
@@ -259,7 +259,7 @@ export class TouchControls {
 
   getLayerCenter() {
     if (!this.activeLayer) return { x: 0, y: 0 };
-    if (this.activeType === 'logo' || this.activeType === 'image') {
+    if (this.activeType === 'image') {
       return { x: this.activeLayer.x, y: this.activeLayer.y };
     }
     const b = this.cachedBounds;
@@ -377,10 +377,6 @@ export class TouchControls {
           const deltaSize = sign * (dist / 4);
           const newSize = Math.max(16, Math.min(140, Math.round(this.initialLayerState.fontSize + deltaSize)));
           this.activeLayer.fontSize = newSize;
-        } else if (this.activeType === 'logo') {
-          const deltaSize = sign * (dist / 2);
-          const newSize = Math.max(40, Math.min(360, Math.round(this.initialLayerState.size + deltaSize)));
-          this.activeLayer.size = newSize;
         } else if (this.activeType === 'image') {
           const deltaSize = sign * (dist / 2);
           const newSize = Math.max(40, Math.min(900, Math.round(this.initialLayerState.size + deltaSize)));
@@ -435,7 +431,7 @@ export class TouchControls {
     // Calculate layer bounds
     let boundsLeft, boundsRight, boundsTop, boundsBottom, itemCenterX, itemCenterY;
 
-    if (this.activeType === 'logo' || this.activeType === 'image') {
+    if (this.activeType === 'image') {
       const b = this.cachedBounds;
       const w = b ? b.width : (this.activeLayer.size || 200);
       const h = b ? b.height : (this.activeLayer.size || 200);

@@ -4,14 +4,13 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=2.6';
-import { TouchControls } from './touch-controls.js?v=2.6';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=2.8';
+import { TouchControls } from './touch-controls.js?v=2.8';
 import { 
   GRADIENT_PRESETS, 
   SAMPLE_BACKGROUNDS, 
-  SAMPLE_LOGOS, 
   STARTER_TEMPLATES 
-} from './presets.js?v=2.6';
+} from './presets.js?v=2.8';
 
 // Self-contained sample sticker graphics (prevents browser module caching errors)
 export const SAMPLE_STICKERS = {
@@ -101,20 +100,6 @@ class App {
     this.snapBadgeX = document.getElementById('snapBadgeX');
     this.snapBadgeY = document.getElementById('snapBadgeY');
 
-    // Logo Controls
-    this.toggleLogoActive = document.getElementById('toggleLogoActive');
-    this.logoFileInput = document.getElementById('logoFileInput');
-    this.logoSizeSlider = document.getElementById('logoSizeSlider');
-    this.logoSizeValue = document.getElementById('logoSizeValue');
-    this.logoRadiusSlider = document.getElementById('logoRadiusSlider');
-    this.logoRadiusValue = document.getElementById('logoRadiusValue');
-    this.logoOpacitySlider = document.getElementById('logoOpacitySlider');
-    this.logoOpacityValue = document.getElementById('logoOpacityValue');
-    this.logoRotationSlider = document.getElementById('logoRotationSlider');
-    this.logoRotationValue = document.getElementById('logoRotationValue');
-    this.btnResetLogoRotation = document.getElementById('btnResetLogoRotation');
-    this.logoPosBtns = document.querySelectorAll('.pos-btn');
-
     // Image Layer Controls
     this.btnAddImageLayer = document.getElementById('btnAddImageLayer');
     this.btnAddImageLayerFromLayers = document.getElementById('btnAddImageLayerFromLayers');
@@ -137,6 +122,15 @@ class App {
 
     // Background Image Controls
     this.bgFileInput = document.getElementById('bgFileInput');
+    this.bgScaleSlider = document.getElementById('bgScaleSlider');
+    this.bgScaleValue = document.getElementById('bgScaleValue');
+    this.btnResetBgScale = document.getElementById('btnResetBgScale');
+    this.bgPosXSlider = document.getElementById('bgPosXSlider');
+    this.bgPosXValue = document.getElementById('bgPosXValue');
+    this.btnResetBgPosX = document.getElementById('btnResetBgPosX');
+    this.bgPosYSlider = document.getElementById('bgPosYSlider');
+    this.bgPosYValue = document.getElementById('bgPosYValue');
+    this.btnResetBgPosY = document.getElementById('btnResetBgPosY');
     this.bgBrightnessSlider = document.getElementById('bgBrightnessSlider');
     this.bgBrightnessValue = document.getElementById('bgBrightnessValue');
     this.bgContrastSlider = document.getElementById('bgContrastSlider');
@@ -179,6 +173,9 @@ class App {
       aspectRatio: '1:1',
       bgColor: 'transparent',
       bgImage: null,
+      bgScale: 100,
+      bgPosX: 0,
+      bgPosY: 0,
       bgBrightness: 100,
       bgContrast: 100,
       bgBlur: 0,
@@ -194,16 +191,6 @@ class App {
           { color: '#000000', alpha: 0, position: 0.2 },
           { color: '#000000', alpha: 0.9, position: 1.0 }
         ]
-      },
-      logo: {
-        active: true,
-        image: SAMPLE_LOGOS['modern'],
-        x: Math.round(1080 * 0.05) + 45, // 5% corner margin
-        y: Math.round(1080 * 0.05) + 45,
-        size: 90,
-        radius: 0,
-        opacity: 100,
-        rotation: 0
       },
       imageLayers: [],
       textLayers: [
@@ -382,10 +369,7 @@ class App {
       return;
     }
 
-    if (this.selectedLayer.id === 'logo') {
-      const bounds = this.renderer.getLogoBounds(this.state.logo);
-      this.touchControls.select('logo', this.state.logo, bounds);
-    } else if (this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
+    if (this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
       const bounds = this.renderer.getImageBounds(this.selectedLayer);
       this.touchControls.select('image', this.selectedLayer, bounds);
     } else {
@@ -446,41 +430,19 @@ class App {
       }
     }
 
-    // 3. Logo layer
-    if (this.state.logo && this.state.logo.active) {
-      const logoBounds = this.renderer.getLogoBounds(this.state.logo);
-      if (
-        canvasX >= logoBounds.left &&
-        canvasX <= logoBounds.left + logoBounds.width &&
-        canvasY >= logoBounds.top &&
-        canvasY <= logoBounds.top + logoBounds.height
-      ) {
-        this.selectLogoLayer();
-        this.switchTab('logo');
-        this.render();
-        return { type: 'logo', layer: this.state.logo };
-      }
-    }
-
     return null;
   }
 
   onLayerModifiedByGesture() {
     this.syncControlsFromState();
     this.updateDOMTextOverlay();
-    if (this.selectedLayer && (this.selectedLayer.id === 'logo' || (this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')))) {
+    if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
       this.renderer.render(this.state, 'preview');
     }
   }
 
   selectTextLayer(layer) {
     this.selectedLayer = layer;
-    this.syncControlsFromState();
-    this.updateSelectionBox();
-  }
-
-  selectLogoLayer() {
-    this.selectedLayer = { id: 'logo' };
     this.syncControlsFromState();
     this.updateSelectionBox();
   }
@@ -631,21 +593,6 @@ class App {
       });
     }
 
-    // Logo controls
-    if (this.state.logo) {
-      this.toggleLogoActive.checked = this.state.logo.active;
-      this.logoSizeSlider.value = this.state.logo.size;
-      this.logoSizeValue.textContent = `${this.state.logo.size}px`;
-      this.logoRadiusSlider.value = this.state.logo.radius || 0;
-      this.logoRadiusValue.textContent = `${this.state.logo.radius || 0}px`;
-      this.logoOpacitySlider.value = this.state.logo.opacity ?? 100;
-      this.logoOpacityValue.textContent = `${this.state.logo.opacity ?? 100}%`;
-      if (this.logoRotationSlider) {
-        this.logoRotationSlider.value = this.state.logo.rotation || 0;
-        this.logoRotationValue.textContent = `${this.state.logo.rotation || 0}°`;
-      }
-    }
-
     // Image layer controls
     if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
       const l = this.selectedLayer;
@@ -695,6 +642,18 @@ class App {
     }
 
     // Background Image adjustments
+    if (this.bgScaleSlider) {
+      this.bgScaleSlider.value = this.state.bgScale ?? 100;
+      this.bgScaleValue.textContent = `${this.state.bgScale ?? 100}%`;
+    }
+    if (this.bgPosXSlider) {
+      this.bgPosXSlider.value = this.state.bgPosX ?? 0;
+      this.bgPosXValue.textContent = `${this.state.bgPosX ?? 0}%`;
+    }
+    if (this.bgPosYSlider) {
+      this.bgPosYSlider.value = this.state.bgPosY ?? 0;
+      this.bgPosYValue.textContent = `${this.state.bgPosY ?? 0}%`;
+    }
     this.bgBrightnessSlider.value = this.state.bgBrightness ?? 100;
     this.bgBrightnessValue.textContent = `${this.state.bgBrightness ?? 100}%`;
     this.bgContrastSlider.value = this.state.bgContrast ?? 100;
@@ -735,10 +694,7 @@ class App {
       const btn = e.target.closest('.tab-btn');
       if (btn) {
         this.switchTab(btn.dataset.tab);
-        if (btn.dataset.tab === 'logo') {
-          this.selectLogoLayer();
-          this.render();
-        } else if (btn.dataset.tab === 'text' && (!this.selectedLayer || this.selectedLayer.id === 'logo')) {
+        if (btn.dataset.tab === 'text' && !this.selectedLayer) {
           if (this.state.textLayers.length > 0) {
             this.selectTextLayer(this.state.textLayers[0]);
             this.render();
@@ -1014,112 +970,6 @@ class App {
     this.gradEndColor.addEventListener('input', updateCustomGradientColors);
     this.gradEndAlpha.addEventListener('input', updateCustomGradientColors);
 
-    // Logo Events
-    this.toggleLogoActive.addEventListener('change', (e) => {
-      this.state.logo.active = e.target.checked;
-      this.render();
-    });
-
-    this.logoFileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          this.state.logo.image = ev.target.result;
-          this.state.logo.active = true;
-          this.toggleLogoActive.checked = true;
-          this.saveHistory();
-          this.selectLogoLayer();
-          this.render();
-          this.showToast('Brand logo uploaded! 🏷️');
-        };
-        reader.readAsDataURL(file);
-      }
-      e.target.value = '';
-    });
-
-    document.querySelectorAll('.sample-logo-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const key = chip.dataset.logo;
-        if (SAMPLE_LOGOS[key]) {
-          this.state.logo.image = SAMPLE_LOGOS[key];
-          this.state.logo.active = true;
-          this.toggleLogoActive.checked = true;
-          this.selectLogoLayer();
-          this.render();
-          this.showToast(`Applied ${chip.textContent} logo`);
-        }
-      });
-    });
-
-    this.logoSizeSlider.addEventListener('input', (e) => {
-      const val = Number(e.target.value);
-      this.state.logo.size = val;
-      this.logoSizeValue.textContent = `${val}px`;
-      this.render();
-    });
-
-    this.logoRadiusSlider.addEventListener('input', (e) => {
-      const val = Number(e.target.value);
-      this.state.logo.radius = val;
-      this.logoRadiusValue.textContent = `${val}px`;
-      this.render();
-    });
-
-    this.logoOpacitySlider.addEventListener('input', (e) => {
-      const val = Number(e.target.value);
-      this.state.logo.opacity = val;
-      this.logoOpacityValue.textContent = `${val}%`;
-      this.render();
-    });
-
-    if (this.logoRotationSlider) {
-      this.logoRotationSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value, 10) || 0;
-        this.state.logo.rotation = val;
-        this.logoRotationValue.textContent = `${val}°`;
-        this.render();
-      });
-    }
-
-    if (this.btnResetLogoRotation) {
-      this.btnResetLogoRotation.addEventListener('click', () => {
-        this.state.logo.rotation = 0;
-        if (this.logoRotationSlider) this.logoRotationSlider.value = 0;
-        if (this.logoRotationValue) this.logoRotationValue.textContent = '0°';
-        this.render();
-      });
-    }
-
-    // Quick Logo 5% corner padding align
-    this.logoPosBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const pos = btn.dataset.pos;
-        const width = this.renderer.logicalWidth;
-        const height = this.renderer.logicalHeight;
-
-        const marginX = Math.round(width * 0.05);
-        const marginY = Math.round(height * 0.05);
-        const halfSize = this.state.logo.size / 2;
-
-        if (pos === 'top-left') {
-          this.state.logo.x = marginX + halfSize;
-          this.state.logo.y = marginY + halfSize;
-        } else if (pos === 'top-right') {
-          this.state.logo.x = width - marginX - halfSize;
-          this.state.logo.y = marginY + halfSize;
-        } else if (pos === 'bottom-left') {
-          this.state.logo.x = marginX + halfSize;
-          this.state.logo.y = height - marginY - halfSize;
-        } else if (pos === 'bottom-right') {
-          this.state.logo.x = width - marginX - halfSize;
-          this.state.logo.y = height - marginY - halfSize;
-        }
-        this.render();
-        this.showToast(`Aligned to ${pos.replace('-', ' ')} with 5% margin`);
-      });
-    });
-
     // Image Layers Events
     if (this.imageLayerFileInput) {
       this.imageLayerFileInput.addEventListener('change', (e) => {
@@ -1306,6 +1156,60 @@ class App {
       });
     });
 
+    if (this.bgScaleSlider) {
+      this.bgScaleSlider.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.state.bgScale = val;
+        this.bgScaleValue.textContent = `${val}%`;
+        this.render();
+      });
+    }
+
+    if (this.btnResetBgScale) {
+      this.btnResetBgScale.addEventListener('click', () => {
+        this.state.bgScale = 100;
+        if (this.bgScaleSlider) this.bgScaleSlider.value = 100;
+        if (this.bgScaleValue) this.bgScaleValue.textContent = '100%';
+        this.render();
+      });
+    }
+
+    if (this.bgPosXSlider) {
+      this.bgPosXSlider.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.state.bgPosX = val;
+        this.bgPosXValue.textContent = `${val}%`;
+        this.render();
+      });
+    }
+
+    if (this.btnResetBgPosX) {
+      this.btnResetBgPosX.addEventListener('click', () => {
+        this.state.bgPosX = 0;
+        if (this.bgPosXSlider) this.bgPosXSlider.value = 0;
+        if (this.bgPosXValue) this.bgPosXValue.textContent = '0%';
+        this.render();
+      });
+    }
+
+    if (this.bgPosYSlider) {
+      this.bgPosYSlider.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.state.bgPosY = val;
+        this.bgPosYValue.textContent = `${val}%`;
+        this.render();
+      });
+    }
+
+    if (this.btnResetBgPosY) {
+      this.btnResetBgPosY.addEventListener('click', () => {
+        this.state.bgPosY = 0;
+        if (this.bgPosYSlider) this.bgPosYSlider.value = 0;
+        if (this.bgPosYValue) this.bgPosYValue.textContent = '0%';
+        this.render();
+      });
+    }
+
     this.bgBrightnessSlider.addEventListener('input', (e) => {
       const val = Number(e.target.value);
       this.state.bgBrightness = val;
@@ -1435,17 +1339,6 @@ class App {
       stops: JSON.parse(JSON.stringify(gradPreset.stops))
     };
 
-    this.state.logo = {
-      active: true,
-      image: SAMPLE_LOGOS[tpl.logo] || SAMPLE_LOGOS['modern'],
-      x: tpl.logoPos.x,
-      y: tpl.logoPos.y,
-      size: tpl.logoPos.size,
-      radius: 0,
-      opacity: 100,
-      rotation: 0
-    };
-
     this.state.imageLayers = [];
     this.state.textLayers = tpl.textLayers.map((l, idx) => ({
       ...l,
@@ -1549,28 +1442,6 @@ class App {
 
         this.layersList.appendChild(item);
       });
-    }
-
-    // Logo Layer
-    if (this.state.logo && this.state.logo.active) {
-      const item = document.createElement('div');
-      const isSelected = this.selectedLayer && this.selectedLayer.id === 'logo';
-      item.className = `layer-item ${isSelected ? 'active' : ''}`;
-
-      item.innerHTML = `
-        <div class="layer-info">
-          <span class="layer-icon">🏷️</span>
-          <span class="layer-name">Brand Logo</span>
-        </div>
-      `;
-
-      item.addEventListener('click', () => {
-        this.selectLogoLayer();
-        this.switchTab('logo');
-        this.render();
-      });
-
-      this.layersList.appendChild(item);
     }
   }
 

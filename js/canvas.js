@@ -150,17 +150,6 @@ export class CanvasRenderer {
     };
   }
 
-  // Calculate logo layer bounds in logical canvas coordinates
-  getLogoBounds(layer) {
-    const size = layer.size || 120;
-    return {
-      left: layer.x - size / 2,
-      top: layer.y - size / 2,
-      width: size,
-      height: size
-    };
-  }
-
   // Calculate image layer bounds in logical canvas coordinates (preserving natural aspect ratio)
   getImageBounds(layer, img = null) {
     let aspect = layer.aspectRatio;
@@ -213,21 +202,28 @@ export class CanvasRenderer {
         const blur = state.bgBlur ?? 0;
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) blur(${blur}px)`;
 
+        const scale = Math.max(0.1, Math.min(6.0, (state.bgScale ?? 100) / 100));
         const imgRatio = bgImg.width / bgImg.height;
         const canvasRatio = this.logicalWidth / this.logicalHeight;
-        let drawWidth, drawHeight, offsetX, offsetY;
+        let baseWidth, baseHeight;
 
         if (imgRatio > canvasRatio) {
-          drawHeight = this.logicalHeight;
-          drawWidth = this.logicalHeight * imgRatio;
-          offsetX = (this.logicalWidth - drawWidth) / 2;
-          offsetY = 0;
+          baseHeight = this.logicalHeight;
+          baseWidth = this.logicalHeight * imgRatio;
         } else {
-          drawWidth = this.logicalWidth;
-          drawHeight = this.logicalWidth / imgRatio;
-          offsetX = 0;
-          offsetY = (this.logicalHeight - drawHeight) / 2;
+          baseWidth = this.logicalWidth;
+          baseHeight = this.logicalWidth / imgRatio;
         }
+
+        const drawWidth = baseWidth * scale;
+        const drawHeight = baseHeight * scale;
+
+        // Position offsets: state.bgPosX (-100% to +100%) and state.bgPosY (-100% to +100%)
+        const panX = ((state.bgPosX ?? 0) / 100) * this.logicalWidth;
+        const panY = ((state.bgPosY ?? 0) / 100) * this.logicalHeight;
+
+        const offsetX = (this.logicalWidth - drawWidth) / 2 + panX;
+        const offsetY = (this.logicalHeight - drawHeight) / 2 + panY;
 
         if (blur > 0) {
           const expand = blur * 4;
@@ -333,31 +329,23 @@ export class CanvasRenderer {
       }
     }
 
-    // 4. Render Brand Logo Layer
-    if (state.logo && state.logo.active && state.logo.image) {
+    // 4. Render Default Brand Logo (assets/logo.png at top-left 4% safe area with 200px width and subtle dropshadow)
+    const defaultLogoImg = await this.loadImage('assets/logo.png');
+    if (defaultLogoImg) {
       ctx.save();
-      const logoImg = await this.loadImage(state.logo.image);
-      if (logoImg) {
-        const bounds = this.getLogoBounds(state.logo);
-        const opacity = Math.max(0, Math.min(1, (state.logo.opacity ?? 100) / 100));
-        ctx.globalAlpha = opacity;
+      const logoW = 200;
+      const logoH = logoW * (defaultLogoImg.naturalHeight || defaultLogoImg.height) / (defaultLogoImg.naturalWidth || defaultLogoImg.width);
+      const marginX = this.logicalWidth * 0.04;
+      const marginY = this.logicalHeight * 0.04;
+      ctx.globalAlpha = 0.8;
 
-        const radius = Math.min((state.logo.radius ?? 0), bounds.width / 2);
+      // Subtle dropshadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
 
-        ctx.translate(state.logo.x, state.logo.y);
-        if (state.logo.rotation) {
-          ctx.rotate((state.logo.rotation * Math.PI) / 180);
-        }
-
-        const half = bounds.width / 2;
-        if (radius > 0) {
-          ctx.beginPath();
-          ctx.roundRect(-half, -half, bounds.width, bounds.height, radius);
-          ctx.clip();
-        }
-
-        ctx.drawImage(logoImg, -half, -half, bounds.width, bounds.height);
-      }
+      ctx.drawImage(defaultLogoImg, marginX, marginY, logoW, logoH);
       ctx.restore();
     }
 

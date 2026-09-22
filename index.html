@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/style.css?v=2.6">
+  <link rel="stylesheet" href="css/style.css?v=2.7">
 </head>
 <body>
   <div id="app" class="app-container">
@@ -133,12 +133,6 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z"/></svg>
           </span>
           <span class="tab-label">Gradient</span>
-        </button>
-        <button class="tab-btn" data-tab="logo" role="tab" aria-selected="false" title="Brand Logo">
-          <span class="tab-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </span>
-          <span class="tab-label">Logo</span>
         </button>
         <button class="tab-btn" data-tab="image" role="tab" aria-selected="false" title="Background Base Image">
           <span class="tab-icon">
@@ -363,89 +357,6 @@
           </div>
         </div>
 
-        <!-- PANEL: LOGO -->
-        <div class="panel" id="panel-logo" role="tabpanel">
-          <div class="panel-section">
-            <div class="section-row">
-              <label class="section-label">Brand Logo</label>
-              <label class="toggle-switch">
-                <input type="checkbox" id="toggleLogoActive" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <!-- Upload logo button -->
-            <div class="upload-dropzone">
-              <input type="file" id="logoFileInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" class="file-input-hidden">
-              <label for="logoFileInput" class="upload-btn-label">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                <span>Upload Logo (PNG / SVG)</span>
-              </label>
-              <div class="sample-logos-quick">
-                <span>Samples:</span>
-                <button class="sample-logo-chip" data-logo="modern">Minimal</button>
-                <button class="sample-logo-chip" data-logo="spark">Spark</button>
-                <button class="sample-logo-chip" data-logo="badge">Circle</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Position Presets (5% padding from corner) -->
-          <div class="panel-section">
-            <div class="section-row">
-              <span class="control-name">Position (5% Margin from Corner):</span>
-            </div>
-            <div class="position-presets">
-              <button class="pos-btn" data-pos="top-left">↖ Top-Left</button>
-              <button class="pos-btn" data-pos="top-right">↗ Top-Right</button>
-              <button class="pos-btn" data-pos="bottom-left">↙ Bottom-Left</button>
-              <button class="pos-btn" data-pos="bottom-right">↘ Bottom-Right</button>
-            </div>
-          </div>
-
-          <div class="panel-grid-2">
-            <div class="panel-col">
-              <div class="slider-header">
-                <span class="control-name">Logo Size</span>
-                <span class="control-value" id="logoSizeValue">120px</span>
-              </div>
-              <input type="range" id="logoSizeSlider" min="40" max="360" value="120" class="styled-slider">
-            </div>
-
-            <div class="panel-col">
-              <div class="slider-header">
-                <span class="control-name">Corner Rounding</span>
-                <span class="control-value" id="logoRadiusValue">0px</span>
-              </div>
-              <input type="range" id="logoRadiusSlider" min="0" max="100" value="0" class="styled-slider">
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <div class="slider-header">
-              <span class="control-name">Logo Opacity</span>
-              <span class="control-value" id="logoOpacityValue">100%</span>
-            </div>
-            <input type="range" id="logoOpacitySlider" min="10" max="100" value="100" class="styled-slider">
-          </div>
-
-          <!-- Logo Rotation Angle -->
-          <div class="panel-section">
-            <div class="slider-header">
-              <span class="control-name">Logo Rotation</span>
-              <span class="control-value" id="logoRotationValue">0°</span>
-            </div>
-            <div class="slider-with-action">
-              <input type="range" id="logoRotationSlider" min="-180" max="180" step="1" value="0" class="styled-slider">
-              <button type="button" id="btnResetLogoRotation" class="mini-icon-btn" title="Reset Rotation to 0°">↺</button>
-            </div>
-          </div>
-        </div>
-
         <!-- PANEL: IMAGE (BACKGROUND) -->
         <div class="panel" id="panel-image" role="tabpanel">
           <div class="panel-section">
@@ -475,6 +386,42 @@
             <div class="layer-switch-tip">
               <span>Want a floating image or sticker instead?</span>
               <button type="button" id="btnSwitchToOverlay" class="text-link-btn">+ Add Sticker Layer →</button>
+            </div>
+          </div>
+
+          <!-- Background Scale / Zoom -->
+          <div class="panel-section">
+            <div class="slider-header">
+              <span class="control-name">Image Scale / Zoom</span>
+              <span class="control-value" id="bgScaleValue">100%</span>
+            </div>
+            <div class="slider-with-action">
+              <input type="range" id="bgScaleSlider" min="50" max="300" step="1" value="100" class="styled-slider">
+              <button type="button" id="btnResetBgScale" class="mini-icon-btn" title="Reset Scale to 100%">↺</button>
+            </div>
+          </div>
+
+          <!-- Background Position X & Y -->
+          <div class="panel-grid-2">
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Position X</span>
+                <span class="control-value" id="bgPosXValue">0%</span>
+              </div>
+              <div class="slider-with-action">
+                <input type="range" id="bgPosXSlider" min="-100" max="100" step="1" value="0" class="styled-slider">
+                <button type="button" id="btnResetBgPosX" class="mini-icon-btn" title="Center Horizontally">↺</button>
+              </div>
+            </div>
+            <div class="panel-col">
+              <div class="slider-header">
+                <span class="control-name">Position Y</span>
+                <span class="control-value" id="bgPosYValue">0%</span>
+              </div>
+              <div class="slider-with-action">
+                <input type="range" id="bgPosYSlider" min="-100" max="100" step="1" value="0" class="styled-slider">
+                <button type="button" id="btnResetBgPosY" class="mini-icon-btn" title="Center Vertically">↺</button>
+              </div>
             </div>
           </div>
 
@@ -637,6 +584,6 @@
   </div>
 
   <!-- Main Application Script -->
-  <script type="module" src="js/app.js?v=2.6"></script>
+  <script type="module" src="js/app.js?v=2.8"></script>
 </body>
 </html>
