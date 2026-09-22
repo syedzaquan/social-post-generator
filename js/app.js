@@ -436,6 +436,8 @@ class App {
   onLayerModifiedByGesture() {
     this.syncControlsFromState();
     this.updateDOMTextOverlay();
+    // Moving or resizing changes the logical bounds used by the selection handles.
+    this.updateSelectionBox();
     if (this.selectedLayer && this.selectedLayer.id && this.selectedLayer.id.startsWith('img-')) {
       this.renderer.render(this.state, 'preview');
     }
