@@ -58,6 +58,9 @@ class App {
     this.lineHeightValue = document.getElementById('lineHeightValue');
     this.letterSpacingSlider = document.getElementById('letterSpacingSlider');
     this.letterSpacingValue = document.getElementById('letterSpacingValue');
+    this.textRotationSlider = document.getElementById('textRotationSlider');
+    this.textRotationValue = document.getElementById('textRotationValue');
+    this.btnResetTextRotation = document.getElementById('btnResetTextRotation');
     this.textAlignBtns = document.querySelectorAll('#textAlignControl .segment-btn');
     this.btnToggleItalic = document.getElementById('btnToggleItalic');
     this.btnToggleShadow = document.getElementById('btnToggleShadow');
@@ -74,6 +77,7 @@ class App {
     this.gradientOpacityValue = document.getElementById('gradientOpacityValue');
     this.gradientAngleSlider = document.getElementById('gradientAngleSlider');
     this.gradientAngleValue = document.getElementById('gradientAngleValue');
+    this.gradientAnglePresetBtns = document.querySelectorAll('#gradientAnglePresets .preset-pill');
     this.gradientBlendMode = document.getElementById('gradientBlendMode');
     this.gradStartColor = document.getElementById('gradStartColor');
     this.gradStartAlpha = document.getElementById('gradStartAlpha');
@@ -97,6 +101,9 @@ class App {
     this.logoRadiusValue = document.getElementById('logoRadiusValue');
     this.logoOpacitySlider = document.getElementById('logoOpacitySlider');
     this.logoOpacityValue = document.getElementById('logoOpacityValue');
+    this.logoRotationSlider = document.getElementById('logoRotationSlider');
+    this.logoRotationValue = document.getElementById('logoRotationValue');
+    this.btnResetLogoRotation = document.getElementById('btnResetLogoRotation');
     this.logoPosBtns = document.querySelectorAll('.pos-btn');
 
     // Background Image Controls
@@ -141,17 +148,17 @@ class App {
   getDefaultState() {
     return {
       aspectRatio: '1:1',
-      bgColor: '#090a10',
-      bgImage: SAMPLE_BACKGROUNDS['gradient-dark'],
+      bgColor: 'transparent',
+      bgImage: null,
       bgBrightness: 100,
       bgContrast: 100,
       bgBlur: 0,
       gradient: {
-        active: true,
-        presetId: 'bottom-fade',
+        active: false,
+        presetId: null,
         type: 'linear',
         angle: 180,
-        opacity: 85,
+        opacity: 80,
         height: 100,
         blendMode: 'normal',
         stops: [
@@ -186,23 +193,6 @@ class App {
           isBadge: false,
           x: 90,
           y: 540
-        },
-        {
-          id: 'text-2',
-          text: 'STUDIO COLLECTION — 2026',
-          fontSize: 16,
-          fontWeight: 400, // DEFAULT: 400
-          fontOpsz: 24,
-          soft: 50,
-          letterSpacing: 1.5,
-          lineHeight: 1.2,
-          align: 'left',
-          color: '#fecaca',
-          italic: true, // DEFAULT: ITALIC
-          hasShadow: false,
-          isBadge: true,
-          x: 90,
-          y: 460
         }
       ]
     };
@@ -214,7 +204,9 @@ class App {
     this.bindEvents();
     
     // Select first text layer by default
-    this.selectTextLayer(this.state.textLayers[0]);
+    if (this.state.textLayers.length > 0) {
+      this.selectTextLayer(this.state.textLayers[0]);
+    }
 
     this.updateCanvasDimensions();
     this.render();
@@ -231,23 +223,37 @@ class App {
 
     const winW = window.innerWidth;
     const winH = window.innerHeight;
+    const isDockCollapsed = this.controlsDock?.classList.contains('collapsed');
 
-    const maxAvailableWidth = winW > 960 ? winW - 420 : winW - 24;
-    const maxAvailableHeight = winH - 90;
+    // On desktop, allocate comfortable space for the canvas workspace to the left of the dock
+    let availableW = winW;
+    let availableH = winH;
+
+    if (winW >= 960) {
+      const dockWidth = isDockCollapsed ? 0 : 380;
+      availableW = winW - dockWidth - 64; // generous margins
+      availableH = winH - 84;
+    } else {
+      availableW = winW - 24;
+      availableH = isDockCollapsed ? winH - 96 : winH - 330;
+    }
 
     const targetRatio = ratioData.width / ratioData.height;
     let stageWidth, stageHeight;
 
-    if (maxAvailableWidth / maxAvailableHeight > targetRatio) {
-      stageHeight = maxAvailableHeight;
+    if (availableW / availableH > targetRatio) {
+      stageHeight = availableH;
       stageWidth = stageHeight * targetRatio;
     } else {
-      stageWidth = maxAvailableWidth;
+      stageWidth = availableW;
       stageHeight = stageWidth / targetRatio;
     }
 
-    this.canvasStage.style.width = `${Math.round(stageWidth)}px`;
-    this.canvasStage.style.height = `${Math.round(stageHeight)}px`;
+    stageWidth = Math.max(180, Math.round(stageWidth));
+    stageHeight = Math.max(180, Math.round(stageHeight));
+
+    this.canvasStage.style.width = `${stageWidth}px`;
+    this.canvasStage.style.height = `${stageHeight}px`;
 
     this.touchControls.updateSelectionBounds();
   }
@@ -267,29 +273,40 @@ class App {
 
   // Live DOM Text Overlay — renders true Fraunces variable font with full SOFT, opsz, wght & letter-spacing
   updateDOMTextOverlay() {
-    this.textOverlayStage.innerHTML = '';
-
     const stageWidth = this.canvasStage.offsetWidth || parseFloat(this.canvasStage.style.width) || this.renderer.logicalWidth;
     const scale = stageWidth / this.renderer.logicalWidth;
 
+    const existingDivs = new Map();
+    this.textOverlayStage.querySelectorAll('.dom-text-layer').forEach(el => {
+      existingDivs.set(el.dataset.id, el);
+    });
+
+    const activeIds = new Set();
+
     this.state.textLayers.forEach(layer => {
       if (!layer.text || layer.visible === false) return;
+      activeIds.add(layer.id);
 
       const bounds = this.renderer.getTextBounds(this.renderer.previewCtx, layer);
       const screenPos = this.touchControls.canvasToClient(bounds.left, bounds.top, bounds.width, bounds.height);
 
-      const div = document.createElement('div');
-      div.className = 'dom-text-layer';
-      div.dataset.id = layer.id;
+      let div = existingDivs.get(layer.id);
+      if (!div) {
+        div = document.createElement('div');
+        div.className = 'dom-text-layer';
+        div.dataset.id = layer.id;
+        this.textOverlayStage.appendChild(div);
+      }
 
       div.style.left = `${screenPos.left}px`;
       div.style.top = `${screenPos.top}px`;
       div.style.width = `${screenPos.width}px`;
+      div.style.height = `${screenPos.height}px`;
       div.style.fontFamily = "'Fraunces', serif";
       div.style.fontStyle = layer.italic ? 'italic' : 'normal';
       div.style.fontWeight = layer.fontWeight || 400;
       div.style.fontSize = `${(layer.fontSize || 54) * scale}px`;
-      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 50}, 'opsz' ${layer.fontOpsz ?? 72}, 'wght' ${layer.fontWeight || 400}`;
+      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 50}, 'opsz' ${layer.fontOpsz ?? 72}, 'wght' ${layer.fontWeight || 400}, 'WONK' 0`;
       div.style.letterSpacing = `${(layer.letterSpacing || 0) * scale}px`;
       div.style.lineHeight = layer.lineHeight || 1.15;
       div.style.color = layer.color || '#ffffff';
@@ -297,6 +314,8 @@ class App {
 
       if (layer.hasShadow) {
         div.style.textShadow = `0 ${4 * scale}px ${12 * scale}px rgba(0, 0, 0, 0.85)`;
+      } else {
+        div.style.textShadow = 'none';
       }
 
       if (layer.isBadge) {
@@ -304,23 +323,26 @@ class App {
         div.style.border = `${1.5 * scale}px solid rgba(248, 113, 113, 0.5)`;
         div.style.borderRadius = `${8 * scale}px`;
         div.style.padding = `${4 * scale}px ${14 * scale}px`;
+      } else {
+        div.style.background = 'none';
+        div.style.border = 'none';
+        div.style.padding = '0';
+      }
+
+      div.style.transformOrigin = 'center center';
+      if (layer.rotation) {
+        div.style.transform = `rotate(${layer.rotation}deg)`;
+      } else {
+        div.style.transform = 'none';
       }
 
       div.textContent = layer.text;
+    });
 
-      // Clicking text selects it
-      div.addEventListener('mousedown', (e) => {
-        this.selectTextLayer(layer);
-        this.switchTab('text');
-        this.render();
-      });
-      div.addEventListener('touchstart', (e) => {
-        this.selectTextLayer(layer);
-        this.switchTab('text');
-        this.render();
-      }, { passive: true });
-
-      this.textOverlayStage.appendChild(div);
+    existingDivs.forEach((el, id) => {
+      if (!activeIds.has(id)) {
+        el.remove();
+      }
     });
   }
 
@@ -392,7 +414,10 @@ class App {
 
   onLayerModifiedByGesture() {
     this.syncControlsFromState();
-    this.render();
+    this.updateDOMTextOverlay();
+    if (this.selectedLayer && this.selectedLayer.id === 'logo') {
+      this.renderer.render(this.state, 'preview');
+    }
   }
 
   selectTextLayer(layer) {
@@ -429,6 +454,10 @@ class App {
     this.controlsDock.classList.toggle('collapsed', willCollapse);
     this.btnExpandDock.classList.toggle('hidden', !willCollapse);
     this.dockToggleIcon.textContent = willCollapse ? '▲' : '▼';
+
+    // Smoothly re-center canvas when dock visibility changes
+    this.updateCanvasDimensions();
+    this.touchControls.resetView(true);
   }
 
   syncControlsFromState() {
@@ -456,6 +485,10 @@ class App {
       this.lineHeightValue.textContent = (l.lineHeight || 1.15).toFixed(2);
       this.letterSpacingSlider.value = l.letterSpacing || 0;
       this.letterSpacingValue.textContent = `${l.letterSpacing || 0}px`;
+      if (this.textRotationSlider) {
+        this.textRotationSlider.value = l.rotation || 0;
+        this.textRotationValue.textContent = `${l.rotation || 0}°`;
+      }
 
       this.textColorPicker.value = l.color || '#ffffff';
       this.textColorPreview.style.background = l.color || '#ffffff';
@@ -482,6 +515,10 @@ class App {
       this.logoRadiusValue.textContent = `${this.state.logo.radius || 0}px`;
       this.logoOpacitySlider.value = this.state.logo.opacity ?? 100;
       this.logoOpacityValue.textContent = `${this.state.logo.opacity ?? 100}%`;
+      if (this.logoRotationSlider) {
+        this.logoRotationSlider.value = this.state.logo.rotation || 0;
+        this.logoRotationValue.textContent = `${this.state.logo.rotation || 0}°`;
+      }
     }
 
     // Gradient controls
@@ -491,6 +528,11 @@ class App {
       this.gradientOpacityValue.textContent = `${this.state.gradient.opacity}%`;
       this.gradientAngleSlider.value = this.state.gradient.angle;
       this.gradientAngleValue.textContent = `${this.state.gradient.angle}°`;
+      if (this.gradientAnglePresetBtns) {
+        this.gradientAnglePresetBtns.forEach(btn => {
+          btn.classList.toggle('active', Number(btn.dataset.angle) === Number(this.state.gradient.angle));
+        });
+      }
       this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
       const gradHeight = this.state.gradient.height ?? 100;
       if (this.gradientHeightSlider) {
@@ -649,6 +691,28 @@ class App {
       }
     });
 
+    if (this.textRotationSlider) {
+      this.textRotationSlider.addEventListener('input', (e) => {
+        if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+          const val = parseInt(e.target.value, 10) || 0;
+          this.selectedLayer.rotation = val;
+          this.textRotationValue.textContent = `${val}°`;
+          this.render();
+        }
+      });
+    }
+
+    if (this.btnResetTextRotation) {
+      this.btnResetTextRotation.addEventListener('click', () => {
+        if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
+          this.selectedLayer.rotation = 0;
+          if (this.textRotationSlider) this.textRotationSlider.value = 0;
+          if (this.textRotationValue) this.textRotationValue.textContent = '0°';
+          this.render();
+        }
+      });
+    }
+
     this.textAlignBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         if (this.selectedLayer && this.selectedLayer.id !== 'logo') {
@@ -729,12 +793,40 @@ class App {
       this.render();
     });
 
+    const GRADIENT_SNAP_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315, 360];
+    const GRADIENT_SNAP_THRESHOLD = 6;
+
     this.gradientAngleSlider.addEventListener('input', (e) => {
-      const val = Number(e.target.value);
+      let val = Number(e.target.value);
+      for (const snap of GRADIENT_SNAP_ANGLES) {
+        if (Math.abs(val - snap) <= GRADIENT_SNAP_THRESHOLD) {
+          val = snap === 360 ? 0 : snap;
+          break;
+        }
+      }
       this.state.gradient.angle = val;
+      this.gradientAngleSlider.value = val;
       this.gradientAngleValue.textContent = `${val}°`;
+      if (this.gradientAnglePresetBtns) {
+        this.gradientAnglePresetBtns.forEach(btn => {
+          btn.classList.toggle('active', Number(btn.dataset.angle) === val);
+        });
+      }
       this.render();
     });
+
+    if (this.gradientAnglePresetBtns) {
+      this.gradientAnglePresetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const angle = Number(btn.dataset.angle);
+          this.state.gradient.angle = angle;
+          this.gradientAngleSlider.value = angle;
+          this.gradientAngleValue.textContent = `${angle}°`;
+          this.gradientAnglePresetBtns.forEach(b => b.classList.toggle('active', b === btn));
+          this.render();
+        });
+      });
+    }
 
     if (this.gradientHeightSlider) {
       this.gradientHeightSlider.addEventListener('input', (e) => {
@@ -825,6 +917,24 @@ class App {
       this.logoOpacityValue.textContent = `${val}%`;
       this.render();
     });
+
+    if (this.logoRotationSlider) {
+      this.logoRotationSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10) || 0;
+        this.state.logo.rotation = val;
+        this.logoRotationValue.textContent = `${val}°`;
+        this.render();
+      });
+    }
+
+    if (this.btnResetLogoRotation) {
+      this.btnResetLogoRotation.addEventListener('click', () => {
+        this.state.logo.rotation = 0;
+        if (this.logoRotationSlider) this.logoRotationSlider.value = 0;
+        if (this.logoRotationValue) this.logoRotationValue.textContent = '0°';
+        this.render();
+      });
+    }
 
     // Quick Logo 5% corner padding align
     this.logoPosBtns.forEach(btn => {

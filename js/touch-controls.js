@@ -243,6 +243,7 @@ export class TouchControls {
   // ==========================================
   handleMouseDown(e) {
     if (e.button !== 0) return; // Only primary button
+    e.preventDefault();
     this.processPointerDown(e.clientX, e.clientY, e.target);
   }
 
@@ -254,6 +255,21 @@ export class TouchControls {
 
   handleMouseUp() {
     this.handlePointerUp();
+  }
+
+  getLayerCenter() {
+    if (!this.activeLayer) return { x: 0, y: 0 };
+    if (this.activeType === 'logo') {
+      return { x: this.activeLayer.x, y: this.activeLayer.y };
+    }
+    const b = this.cachedBounds;
+    if (b) {
+      return {
+        x: b.left + b.width / 2,
+        y: b.top + b.height / 2
+      };
+    }
+    return { x: this.activeLayer.x, y: this.activeLayer.y };
   }
 
   // ==========================================
@@ -272,6 +288,11 @@ export class TouchControls {
       this.activeHandle = handleEl.dataset.handle;
       this.dragStart = coords;
       this.initialLayerState = { ...this.activeLayer };
+      if (this.activeHandle === 'rotate') {
+        const center = this.getLayerCenter();
+        this.initialAngle = Math.atan2(coords.y - center.y, coords.x - center.x) * (180 / Math.PI);
+        this.initialRotation = this.activeLayer.rotation || 0;
+      }
       return;
     }
 
@@ -332,8 +353,20 @@ export class TouchControls {
     // Resizing layer via corner handles or rotate handle
     else if (this.isResizing) {
       if (this.activeHandle === 'rotate') {
-        const angle = Math.atan2(coords.y - this.activeLayer.y, coords.x - this.activeLayer.x) * (180 / Math.PI);
-        this.activeLayer.rotation = Math.round(angle);
+        const center = this.getLayerCenter();
+        const currentAngle = Math.atan2(coords.y - center.y, coords.x - center.x) * (180 / Math.PI);
+        let deltaAngle = currentAngle - this.initialAngle;
+        let newRotation = Math.round((this.initialRotation + deltaAngle) % 360);
+        if (newRotation > 180) newRotation -= 360;
+        if (newRotation < -180) newRotation += 360;
+
+        // Subtle magnetic snap near 0°, 90°, -90°, 180°
+        if (Math.abs(newRotation) <= 4) newRotation = 0;
+        else if (Math.abs(newRotation - 90) <= 4) newRotation = 90;
+        else if (Math.abs(newRotation + 90) <= 4) newRotation = -90;
+        else if (Math.abs(Math.abs(newRotation) - 180) <= 4) newRotation = 180;
+
+        this.activeLayer.rotation = newRotation;
       } else {
         const dist = Math.hypot(deltaX, deltaY);
         const sign = (this.activeHandle === 'se' || this.activeHandle === 'ne')

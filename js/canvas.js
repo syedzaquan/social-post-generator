@@ -106,7 +106,7 @@ export class CanvasRenderer {
 
     ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
     if ('fontVariationSettings' in ctx) {
-      ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}`;
+      ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0`;
     }
     if ('letterSpacing' in ctx) {
       ctx.letterSpacing = `${letterSpacing}px`;
@@ -174,8 +174,10 @@ export class CanvasRenderer {
 
     // 1. Render Background
     ctx.save();
-    ctx.fillStyle = state.bgColor || '#090a10';
-    ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
+    if (state.bgColor && state.bgColor !== 'transparent') {
+      ctx.fillStyle = state.bgColor;
+      ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
+    }
 
     if (state.bgImage) {
       const bgImg = await this.loadImage(state.bgImage);
@@ -308,6 +310,13 @@ export class CanvasRenderer {
 
         // Native Canvas 2D text drawing ensures crisp typography without tainting the canvas
         ctx.save();
+        if (layer.rotation) {
+          const centerX = bounds.left + bounds.width / 2;
+          const centerY = bounds.top + bounds.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate((layer.rotation * Math.PI) / 180);
+          ctx.translate(-centerX, -centerY);
+        }
         const style = layer.italic ? 'italic' : 'normal';
         const weight = layer.fontWeight || 400;
         const fontSize = layer.fontSize || 54;
@@ -318,7 +327,7 @@ export class CanvasRenderer {
 
         ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
         if ('fontVariationSettings' in ctx) {
-          ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}`;
+          ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0`;
         }
         if ('letterSpacing' in ctx) {
           ctx.letterSpacing = `${letterSpacing}px`;
