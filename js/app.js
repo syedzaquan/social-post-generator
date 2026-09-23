@@ -217,7 +217,7 @@ class App {
           hasShadow: true, // DEFAULT: DROP SHADOW LIKE LOGO.PNG
           isBadge: false,
           x: 540,
-          y: 800 // 35% from the bottom of 1350 canvas (text center at ~878px)
+          y: 1065 // 15% from the bottom of 1350 canvas (text center at ~1148px)
         }
       ]
     };
