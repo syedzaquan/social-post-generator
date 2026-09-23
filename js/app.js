@@ -321,9 +321,9 @@ class App {
       div.style.fontStyle = layer.italic ? 'italic' : 'normal';
       div.style.fontWeight = layer.fontWeight ?? 350;
       div.style.fontSize = `${(layer.fontSize || 72) * scale}px`;
-      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? 72}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
+      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 72))}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
       div.style.letterSpacing = `${(layer.letterSpacing !== undefined ? layer.letterSpacing : -1) * scale}px`;
-      div.style.lineHeight = layer.lineHeight || 1.15;
+      div.style.lineHeight = `${bounds.lineHeight * scale}px`;
       div.style.color = layer.color || '#ffffff';
       div.style.textAlign = layer.align || 'center';
 
@@ -337,7 +337,7 @@ class App {
         div.style.background = 'rgba(229, 9, 20, 0.28)';
         div.style.border = `${1.5 * scale}px solid rgba(248, 113, 113, 0.5)`;
         div.style.borderRadius = `${8 * scale}px`;
-        div.style.padding = `${4 * scale}px ${14 * scale}px`;
+        div.style.padding = `${bounds.padY * scale}px ${bounds.padX * scale}px`;
       } else {
         div.style.background = 'none';
         div.style.border = 'none';
@@ -351,7 +351,7 @@ class App {
         div.style.transform = 'none';
       }
 
-      div.textContent = layer.text;
+      div.innerHTML = bounds.lines.map(line => `<div>${this.renderer.escapeSvg(line) || '&nbsp;'}</div>`).join('');
     });
 
     existingDivs.forEach((el, id) => {

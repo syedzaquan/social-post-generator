@@ -105,9 +105,14 @@ export class CanvasRenderer {
     const fontFace = fontData
       ? `@font-face{font-family:ExportFraunces;src:url(data:font/ttf;base64,${fontData}) format('truetype');font-style:${style};font-weight:100 900;}`
       : '';
-    const shadow = layer.hasShadow ? '<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.75"/></filter>' : '';
-    const tspans = bounds.lines.map((line, index) => `<tspan x="${layer.x}" dy="${index === 0 ? 0 : bounds.lineHeight}">${this.escapeSvg(line)}</tspan>`).join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace}</style><defs>${shadow}</defs><text x="${layer.x}" y="${layer.y}" text-anchor="${anchor}" dominant-baseline="hanging" font-family="${fontData ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}" font-style="${style}" font-weight="${weight}" letter-spacing="${letterSpacing}" fill="${this.escapeSvg(layer.color || '#ffffff')}" style="font-variation-settings:'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
+    const shadow = layer.hasShadow ? '<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.85"/></filter>' : '';
+
+    const tspans = bounds.lines.map((line, index) => {
+      const lineY = bounds.firstBaseline + (index * bounds.lineHeight);
+      return `<tspan x="${layer.x}" y="${lineY}">${this.escapeSvg(line)}</tspan>`;
+    }).join('');
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace}</style><defs>${shadow}</defs><text x="${layer.x}" text-anchor="${anchor}" font-family="${fontData ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}px" font-style="${style}" font-weight="${weight}" letter-spacing="${letterSpacing}px" fill="${this.escapeSvg(layer.color || '#ffffff')}" style="font-variation-settings:'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     try {
       const image = await this.loadImage(url);
@@ -191,15 +196,32 @@ export class CanvasRenderer {
       left = x - maxLineWidth;
     }
 
-    const padding = layer.isBadge ? 18 : 6;
+    const padX = layer.isBadge ? 14 : 0;
+    const padY = layer.isBadge ? 6 : 0;
+
+    // Font metrics for baseline calculation
+    const metrics = ctx.measureText('Mg');
+    const ascent = metrics.fontBoundingBoxAscent || metrics.actualBoundingBoxAscent || (fontSize * 0.88);
+    const halfLeading = (lineHeight - fontSize) / 2;
+    const firstBaseline = y + halfLeading + ascent;
+
     return {
-      left: left - padding,
-      top: y - padding,
-      width: maxLineWidth + padding * 2,
-      height: totalHeight + padding * 2,
+      left: left - padX,
+      top: y - padY,
+      width: maxLineWidth + padX * 2,
+      height: totalHeight + padY * 2,
+      contentLeft: left,
+      contentTop: y,
+      contentWidth: maxLineWidth,
+      contentHeight: totalHeight,
+      padX,
+      padY,
       lines,
       lineHeight,
-      maxLineWidth
+      maxLineWidth,
+      firstBaseline,
+      ascent,
+      halfLeading
     };
   }
 

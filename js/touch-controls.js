@@ -459,29 +459,29 @@ export class TouchControls {
       boundsBottom = nextY + h / 2;
     } else if (this.activeType === 'text') {
       const b = this.cachedBounds;
-      const w = b ? b.width : 200;
-      const h = b ? b.height : 60;
-      const maxW = b ? b.maxLineWidth : w;
-      const padding = this.activeLayer.isBadge ? 18 : 6;
+      const maxW = b ? (b.maxLineWidth || b.width) : 200;
+      const contentH = b ? (b.contentHeight || b.height) : 60;
+      const padX = b ? (b.padX || 0) : (this.activeLayer.isBadge ? 14 : 0);
+      const padY = b ? (b.padY || 0) : (this.activeLayer.isBadge ? 6 : 0);
 
       const align = this.activeLayer.align || 'center';
       if (align === 'center') {
         itemCenterX = nextX;
-        boundsLeft = nextX - maxW / 2 - padding;
-        boundsRight = nextX + maxW / 2 + padding;
+        boundsLeft = nextX - maxW / 2 - padX;
+        boundsRight = nextX + maxW / 2 + padX;
       } else if (align === 'right') {
         itemCenterX = nextX - maxW / 2;
-        boundsLeft = nextX - maxW - padding;
-        boundsRight = nextX + padding;
+        boundsLeft = nextX - maxW - padX;
+        boundsRight = nextX + padX;
       } else {
         itemCenterX = nextX + maxW / 2;
-        boundsLeft = nextX - padding;
-        boundsRight = nextX + maxW + padding;
+        boundsLeft = nextX - padX;
+        boundsRight = nextX + maxW + padX;
       }
 
-      boundsTop = nextY - padding;
-      boundsBottom = nextY + h - padding;
-      itemCenterY = nextY + h / 2 - padding;
+      boundsTop = nextY - padY;
+      boundsBottom = nextY + contentH + padY;
+      itemCenterY = nextY + contentH / 2;
     }
 
     // Horizontal snapping: Center -> Safe Margin -> Canvas Edge

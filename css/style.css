@@ -107,7 +107,6 @@ html, body {
   justify-content: space-between;
   gap: 12px;
   pointer-events: none;
-  flex-wrap: wrap;
 }
 
 .floating-top-bar > * {
@@ -525,12 +524,17 @@ html, body {
   pointer-events: auto;
   cursor: move;
   box-sizing: border-box;
-  white-space: pre-wrap;
-  word-break: break-word;
   user-select: none;
   font-family: 'Fraunces', serif;
   font-variation-settings: 'WONK' 0;
   transform-origin: center center;
+}
+
+.dom-text-layer div {
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+  white-space: pre;
 }
 
 /* ==========================================================================
