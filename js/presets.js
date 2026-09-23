@@ -11,13 +11,13 @@ export const GRADIENT_PRESETS = [
     type: 'linear',
     angle: 180,
     opacity: 1.0,
-    height: 50,
+    height: 60,
     blendMode: 'normal',
     stops: [
       { color: '#000000', alpha: 0, position: 0.2 },
-      { color: '#000000', alpha: 0.9, position: 1.0 }
+      { color: '#000000', alpha: 1.0, position: 1.0 }
     ],
-    preview: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 100%)'
+    preview: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%)'
   },
   {
     id: 'sunset-glow',

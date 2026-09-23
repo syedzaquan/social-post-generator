@@ -526,6 +526,8 @@ html, body {
   box-sizing: border-box;
   user-select: none;
   font-family: 'Fraunces', serif;
+  font-optical-sizing: none;
+  -webkit-font-optical-sizing: none;
   font-variation-settings: 'WONK' 0;
   transform-origin: center center;
 }
@@ -534,12 +536,16 @@ html, body {
   margin: 0;
   padding: 0;
   line-height: inherit;
+  font-optical-sizing: none;
+  -webkit-font-optical-sizing: none;
   white-space: pre;
 }
 
 .dom-text-layer span {
   display: inline;
   line-height: inherit;
+  font-optical-sizing: none;
+  -webkit-font-optical-sizing: none;
   text-underline-offset: 0.12em;
   text-decoration-thickness: 0.04em;
 }

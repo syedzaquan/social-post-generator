@@ -4,13 +4,13 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.0';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.1';
 import { TouchControls } from './touch-controls.js?v=2.9';
 import { 
   GRADIENT_PRESETS, 
   SAMPLE_BACKGROUNDS, 
   STARTER_TEMPLATES 
-} from './presets.js?v=2.9';
+} from './presets.js?v=3.1';
 
 // Self-contained sample sticker graphics (prevents browser module caching errors)
 export const SAMPLE_STICKERS = {
@@ -178,7 +178,7 @@ class App {
 
   getDefaultState() {
     return {
-      aspectRatio: '1:1',
+      aspectRatio: '4:5',
       bgColor: 'transparent',
       bgImage: null,
       bgScale: 100,
@@ -193,11 +193,11 @@ class App {
         type: 'linear',
         angle: 180,
         opacity: 100,
-        height: 50,
+        height: 60,
         blendMode: 'normal',
         stops: [
           { color: '#000000', alpha: 0, position: 0.2 },
-          { color: '#000000', alpha: 0.9, position: 1.0 }
+          { color: '#000000', alpha: 1.0, position: 1.0 }
         ]
       },
       imageLayers: [],
@@ -205,19 +205,19 @@ class App {
         {
           id: 'text-1',
           text: 'Design with intention, craft with soul.',
-          fontSize: 72,
+          fontSize: 88,
           fontWeight: 350, // DEFAULT: 350
-          fontOpsz: 72,
+          fontOpsz: 88,
           soft: 100, // DEFAULT: SOFT 100
           letterSpacing: -1, 
-          lineHeight: 1.16,
+          lineHeight: 0.95,
           align: 'center',
           color: '#ffffff',
           italic: false, // DEFAULT: NON-ITALIC
           hasShadow: false, // DEFAULT: NO GLOW
           isBadge: false,
           x: 540,
-          y: 520
+          y: 650
         }
       ]
     };
@@ -228,6 +228,13 @@ class App {
     this.populateTemplates();
     this.bindEvents();
     
+    // Sync ratio chips with initial state
+    this.ratioChips.forEach(c => {
+      const isActive = c.dataset.ratio === this.state.aspectRatio;
+      c.classList.toggle('active', isActive);
+      c.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    });
+
     // Select first text layer by default
     if (this.state.textLayers.length > 0) {
       this.selectTextLayer(this.state.textLayers[0]);
@@ -328,8 +335,10 @@ class App {
       div.style.fontFamily = "'Fraunces', serif";
       div.style.fontStyle = layer.italic ? 'italic' : 'normal';
       div.style.fontWeight = layer.fontWeight ?? 350;
-      div.style.fontSize = `${(layer.fontSize || 72) * scale}px`;
-      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 72))}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
+      div.style.fontSize = `${(layer.fontSize || 88) * scale}px`;
+      div.style.fontOpticalSizing = 'none';
+      div.style.webkitFontOpticalSizing = 'none';
+      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 88))}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
       div.style.letterSpacing = `${(layer.letterSpacing !== undefined ? layer.letterSpacing : -1) * scale}px`;
       div.style.lineHeight = `${bounds.lineHeight * scale}px`;
       div.style.color = layer.color || '#ffffff';
@@ -361,17 +370,18 @@ class App {
 
       div.innerHTML = bounds.parsedLines.map(lineObj => {
         const lineHtml = lineObj.tokens.map(token => {
-          const tWeight = token.style.weight ?? 350;
+          const tWeight = token.style.weight ?? token.style.fontWeight ?? (layer.fontWeight ?? 350);
           const tStyle = token.style.italic ? 'italic' : 'normal';
           const tColor = token.style.color || layer.color || '#ffffff';
           const tSoft = token.style.soft ?? (layer.soft ?? 100);
-          const tOpsz = token.style.opsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 72)));
+          const tOpsz = token.style.opsz ?? token.style.fontOpsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 88)));
           const tUnderline = token.style.underline ? 'text-decoration:underline;text-underline-offset:0.12em;text-decoration-thickness:0.04em;' : '';
 
           const styleAttr = [
             `font-weight:${tWeight}`,
             `font-style:${tStyle}`,
             `color:${tColor}`,
+            `font-optical-sizing:none`,
             `font-variation-settings:'SOFT' ${tSoft}, 'opsz' ${tOpsz}, 'wght' ${tWeight}, 'WONK' 0`,
             tUnderline
           ].filter(Boolean).join(';');
@@ -587,18 +597,18 @@ class App {
       this.softValue.textContent = l.soft ?? 100;
 
       // Optical Size
-      this.opszSlider.value = l.fontOpsz ?? 72;
-      this.opszValue.textContent = l.fontOpsz ?? 72;
+      this.opszSlider.value = l.fontOpsz ?? 88;
+      this.opszValue.textContent = l.fontOpsz ?? 88;
 
       // Font Weight
       this.fontWeightSlider.value = l.fontWeight ?? 350;
       this.fontWeightValue.textContent = l.fontWeight ?? 350;
 
       // Size & Spacing
-      this.fontSizeSlider.value = l.fontSize || 72;
-      this.fontSizeValue.textContent = `${l.fontSize || 72}px`;
-      this.lineHeightSlider.value = l.lineHeight || 1.15;
-      this.lineHeightValue.textContent = (l.lineHeight || 1.15).toFixed(2);
+      this.fontSizeSlider.value = l.fontSize || 88;
+      this.fontSizeValue.textContent = `${l.fontSize || 88}px`;
+      this.lineHeightSlider.value = l.lineHeight || 0.95;
+      this.lineHeightValue.textContent = (l.lineHeight || 0.95).toFixed(2);
       this.letterSpacingSlider.value = l.letterSpacing !== undefined ? l.letterSpacing : -1;
       this.letterSpacingValue.textContent = `${l.letterSpacing !== undefined ? l.letterSpacing : -1}px`;
       if (this.textRotationSlider) {
@@ -663,10 +673,17 @@ class App {
         });
       }
       this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
-      const gradHeight = this.state.gradient.height ?? 100;
+      const gradHeight = this.state.gradient.height ?? 60;
       if (this.gradientHeightSlider) {
         this.gradientHeightSlider.value = gradHeight;
         this.gradientHeightValue.textContent = `${gradHeight}%`;
+      }
+      if (this.state.gradient.stops && this.state.gradient.stops.length >= 2) {
+        if (this.gradStartColor) this.gradStartColor.value = this.state.gradient.stops[0].color || '#000000';
+        if (this.gradStartAlpha) this.gradStartAlpha.value = Math.round((this.state.gradient.stops[0].alpha ?? 0) * 100);
+        const lastStop = this.state.gradient.stops[this.state.gradient.stops.length - 1];
+        if (this.gradEndColor) this.gradEndColor.value = lastStop.color || '#000000';
+        if (this.gradEndAlpha) this.gradEndAlpha.value = Math.round((lastStop.alpha ?? 1) * 100);
       }
     }
 
@@ -966,12 +983,12 @@ class App {
       const newLayer = {
         id: `text-${Date.now()}`,
         text: 'New Fraunces Text',
-        fontSize: 72,
+        fontSize: 88,
         fontWeight: 350, // DEFAULT 350
-        fontOpsz: 72,
+        fontOpsz: 88,
         soft: 100,
         letterSpacing: -1,
-        lineHeight: 1.2,
+        lineHeight: 0.95,
         align: 'center',
         color: '#ffffff',
         italic: false, // DEFAULT NON-ITALIC
@@ -1330,6 +1347,11 @@ class App {
     this.btnReset.addEventListener('click', () => {
       if (confirm('Reset canvas to default?')) {
         this.state = this.getDefaultState();
+        this.ratioChips.forEach(c => {
+          const isActive = c.dataset.ratio === this.state.aspectRatio;
+          c.classList.toggle('active', isActive);
+          c.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        });
         this.selectTextLayer(this.state.textLayers[0]);
         this.touchControls.resetView();
         this.updateCanvasDimensions();

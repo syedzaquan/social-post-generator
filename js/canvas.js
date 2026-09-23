@@ -18,9 +18,9 @@ export class CanvasRenderer {
     this.exportCanvas = exportCanvas;
     this.exportCtx = exportCanvas.getContext('2d');
 
-    this.aspectRatio = '1:1';
+    this.aspectRatio = '4:5';
     this.logicalWidth = 1080;
-    this.logicalHeight = 1080;
+    this.logicalHeight = 1350;
 
     // Cache loaded images
     this.imageCache = new Map();
@@ -169,12 +169,14 @@ export class CanvasRenderer {
     };
 
     const initialStyle = {
-      weight: baseStyle.fontWeight ?? 350,
+      weight: baseStyle.fontWeight ?? baseStyle.weight ?? 350,
+      fontWeight: baseStyle.fontWeight ?? baseStyle.weight ?? 350,
       italic: Boolean(baseStyle.italic),
       color: baseStyle.color || '#ffffff',
       underline: Boolean(baseStyle.underline),
       soft: baseStyle.soft ?? 100,
-      opsz: baseStyle.fontOpsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 72))
+      opsz: baseStyle.fontOpsz ?? baseStyle.opsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 88)),
+      fontOpsz: baseStyle.fontOpsz ?? baseStyle.opsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 88))
     };
 
     parse(text, initialStyle);
@@ -186,12 +188,14 @@ export class CanvasRenderer {
 
     const baseStyle = {
       weight: baseLayer.fontWeight ?? 350,
+      fontWeight: baseLayer.fontWeight ?? 350,
       italic: Boolean(baseLayer.italic),
       color: baseLayer.color || '#ffffff',
       underline: Boolean(baseLayer.underline),
       soft: baseLayer.soft ?? 100,
-      opsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 72)),
-      fontSize: baseLayer.fontSize || 72,
+      opsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 88)),
+      fontOpsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 88)),
+      fontSize: baseLayer.fontSize || 88,
       letterSpacing: baseLayer.letterSpacing !== undefined ? baseLayer.letterSpacing : -1
     };
 
@@ -214,9 +218,14 @@ export class CanvasRenderer {
 
       for (const token of paragraphTokens) {
         const style = token.style.italic ? 'italic' : 'normal';
-        const weight = token.style.weight ?? 350;
+        const weight = token.style.weight ?? token.style.fontWeight ?? (baseStyle.fontWeight ?? 350);
         const fontSize = baseStyle.fontSize;
         ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
+        if ('fontVariationSettings' in ctx) {
+          const soft = token.style.soft ?? (baseStyle.soft ?? 100);
+          const opsz = token.style.opsz ?? token.style.fontOpsz ?? (baseStyle.opsz ?? Math.max(9, Math.min(144, fontSize)));
+          ctx.fontVariationSettings = `'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0`;
+        }
 
         const chunks = token.text.match(/\S+|\s+/g) || [];
         for (const chunk of chunks) {
@@ -285,7 +294,7 @@ export class CanvasRenderer {
     const hasItalicToken = bounds.parsedLines.some(l => l.tokens.some(t => t.style.italic));
     const fontDataNormal = await this.getExportFontData('normal');
     const fontDataItalic = (layer.italic || hasItalicToken) ? await this.getExportFontData('italic') : '';
-    const fontSize = layer.fontSize || 72;
+    const fontSize = layer.fontSize || 88;
     const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
     const anchor = (layer.align || 'center') === 'left' ? 'start' : (layer.align || 'center') === 'right' ? 'end' : 'middle';
 
@@ -302,20 +311,20 @@ export class CanvasRenderer {
     const tspans = bounds.parsedLines.map((lineObj, index) => {
       const lineY = bounds.firstBaseline + (index * bounds.lineHeight);
       const innerTspans = lineObj.tokens.map(token => {
-        const tWeight = token.style.weight ?? 350;
+        const tWeight = token.style.weight ?? token.style.fontWeight ?? (layer.fontWeight ?? 350);
         const tStyle = token.style.italic ? 'italic' : 'normal';
         const tColor = token.style.color || layer.color || '#ffffff';
         const tSoft = token.style.soft ?? (layer.soft ?? 100);
-        const tOpsz = token.style.opsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize)));
+        const tOpsz = token.style.opsz ?? token.style.fontOpsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize)));
         const tUnderline = token.style.underline ? ' text-decoration="underline"' : '';
 
-        return `<tspan font-weight="${tWeight}" font-style="${tStyle}" fill="${this.escapeSvg(tColor)}"${tUnderline} style="font-variation-settings:'SOFT' ${tSoft}, 'opsz' ${tOpsz}, 'wght' ${tWeight}, 'WONK' 0">${this.escapeSvg(token.text)}</tspan>`;
+        return `<tspan font-weight="${tWeight}" font-style="${tStyle}" fill="${this.escapeSvg(tColor)}"${tUnderline} style="font-optical-sizing:none;font-variation-settings:'SOFT' ${tSoft}, 'opsz' ${tOpsz}, 'wght' ${tWeight}, 'WONK' 0">${this.escapeSvg(token.text)}</tspan>`;
       }).join('');
 
       return `<tspan x="${layer.x}" y="${lineY}">${innerTspans}</tspan>`;
     }).join('');
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace}</style><defs>${shadow}</defs><text x="${layer.x}" text-anchor="${anchor}" font-family="${(fontDataNormal || fontDataItalic) ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}px" letter-spacing="${letterSpacing}px"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace} text, tspan { font-optical-sizing: none; }</style><defs>${shadow}</defs><text x="${layer.x}" text-anchor="${anchor}" font-family="${(fontDataNormal || fontDataItalic) ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}px" letter-spacing="${letterSpacing}px"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     try {
       const image = await this.loadImage(url);
@@ -330,7 +339,7 @@ export class CanvasRenderer {
   getTextBounds(ctx, layer) {
     const style = layer.italic ? 'italic' : 'normal';
     const weight = layer.fontWeight ?? 350;
-    const fontSize = layer.fontSize || 72;
+    const fontSize = layer.fontSize || 88;
     const soft = layer.soft ?? 100;
     const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
     const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
@@ -346,7 +355,7 @@ export class CanvasRenderer {
     const maxWidth = this.logicalWidth * 0.84;
     const parsedLines = this.parseAndWrapText(ctx, layer.text, maxWidth, layer);
     const lines = parsedLines.map(l => l.text);
-    const lineHeight = fontSize * (layer.lineHeight || 1.15);
+    const lineHeight = fontSize * (layer.lineHeight || 0.95);
 
     let maxLineWidth = 0;
     for (const l of parsedLines) {

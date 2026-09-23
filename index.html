@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/style.css?v=3.0">
+  <link rel="stylesheet" href="css/style.css?v=3.1">
 </head>
 <body>
   <div id="app" class="app-container">
@@ -23,9 +23,9 @@
     <header class="floating-top-bar">
       <!-- Aspect Ratio Dropdown / Chips -->
       <div class="format-chips-bar" role="radiogroup" aria-label="Aspect Ratio">
-        <button class="chip active" data-ratio="1:1" aria-checked="true" role="radio">1:1</button>
+        <button class="chip" data-ratio="1:1" aria-checked="false" role="radio">1:1</button>
         <button class="chip" data-ratio="9:16" aria-checked="false" role="radio">9:16</button>
-        <button class="chip" data-ratio="4:5" aria-checked="false" role="radio">4:5</button>
+        <button class="chip active" data-ratio="4:5" aria-checked="true" role="radio">4:5</button>
         <button class="chip" data-ratio="3:4" aria-checked="false" role="radio">3:4</button>
         <button class="chip" data-ratio="16:9" aria-checked="false" role="radio">16:9</button>
       </div>
@@ -229,9 +229,9 @@
             <div class="panel-col">
               <div class="slider-header">
                 <span class="control-name">Optical Size</span>
-                <span class="control-value" id="opszValue">72</span>
+                <span class="control-value" id="opszValue">88</span>
               </div>
-              <input type="range" id="opszSlider" min="9" max="144" step="1" value="72" class="styled-slider">
+              <input type="range" id="opszSlider" min="9" max="144" step="1" value="88" class="styled-slider">
             </div>
           </div>
 
@@ -255,9 +255,9 @@
           <div class="panel-section">
             <div class="slider-header">
               <span class="control-name">Font Size</span>
-              <span class="control-value" id="fontSizeValue">72px</span>
+              <span class="control-value" id="fontSizeValue">88px</span>
             </div>
-            <input type="range" id="fontSizeSlider" min="16" max="140" step="1" value="72" class="styled-slider">
+            <input type="range" id="fontSizeSlider" min="16" max="140" step="1" value="88" class="styled-slider">
           </div>
 
           <!-- Spacing Controls: Line Spacing & Letter Spacing in 2 balanced columns -->
@@ -265,9 +265,9 @@
             <div class="panel-col">
               <div class="slider-header">
                 <span class="control-name">Line Spacing</span>
-                <span class="control-value" id="lineHeightValue">1.15</span>
+                <span class="control-value" id="lineHeightValue">0.95</span>
               </div>
-              <input type="range" id="lineHeightSlider" min="0.8" max="2.0" step="0.05" value="1.15" class="styled-slider">
+              <input type="range" id="lineHeightSlider" min="0.8" max="2.0" step="0.05" value="0.95" class="styled-slider">
             </div>
 
             <div class="panel-col">
@@ -368,9 +368,9 @@
           <div class="panel-section">
             <div class="slider-header">
               <span class="control-name">Gradient Height / Coverage</span>
-              <span class="control-value" id="gradientHeightValue">50%</span>
+              <span class="control-value" id="gradientHeightValue">60%</span>
             </div>
-            <input type="range" id="gradientHeightSlider" min="15" max="100" value="50" class="styled-slider">
+            <input type="range" id="gradientHeightSlider" min="15" max="100" value="60" class="styled-slider">
           </div>
 
           <div class="panel-section">
@@ -393,7 +393,7 @@
               <div class="color-picker-box">
                 <label>Bottom / End</label>
                 <input type="color" id="gradEndColor" value="#000000" class="color-input">
-                <input type="range" id="gradEndAlpha" min="0" max="100" value="90" class="styled-slider mini">
+                <input type="range" id="gradEndAlpha" min="0" max="100" value="100" class="styled-slider mini">
               </div>
             </div>
           </div>
@@ -626,6 +626,6 @@
   </div>
 
   <!-- Main Application Script -->
-  <script type="module" src="js/app.js?v=2.9"></script>
+  <script type="module" src="js/app.js?v=3.1"></script>
 </body>
 </html>
