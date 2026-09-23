@@ -292,7 +292,7 @@
             <div class="section-row">
               <label class="section-label">Gradient Overlay</label>
               <label class="toggle-switch">
-                <input type="checkbox" id="toggleGradientActive">
+                <input type="checkbox" id="toggleGradientActive" checked>
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -304,9 +304,9 @@
             <div class="panel-col">
               <div class="slider-header">
                 <span class="control-name">Opacity</span>
-                <span class="control-value" id="gradientOpacityValue">80%</span>
+                <span class="control-value" id="gradientOpacityValue">100%</span>
               </div>
-              <input type="range" id="gradientOpacitySlider" min="0" max="100" value="80" class="styled-slider">
+              <input type="range" id="gradientOpacitySlider" min="0" max="100" value="100" class="styled-slider">
             </div>
             <div class="panel-col">
               <div class="slider-header">
@@ -327,19 +327,19 @@
           <div class="panel-section">
             <div class="slider-header">
               <span class="control-name">Gradient Height / Coverage</span>
-              <span class="control-value" id="gradientHeightValue">100%</span>
+              <span class="control-value" id="gradientHeightValue">50%</span>
             </div>
-            <input type="range" id="gradientHeightSlider" min="15" max="100" value="100" class="styled-slider">
+            <input type="range" id="gradientHeightSlider" min="15" max="100" value="50" class="styled-slider">
           </div>
 
           <div class="panel-section">
             <div class="section-row">
               <span class="control-name">Blend Mode & Custom Colors</span>
               <select id="gradientBlendMode" class="styled-select">
-                <option value="normal">Normal</option>
+                <option value="normal" selected>Normal</option>
                 <option value="multiply">Multiply</option>
                 <option value="overlay">Overlay</option>
-                <option value="soft-light" selected>Soft Light</option>
+                <option value="soft-light">Soft Light</option>
                 <option value="screen">Screen</option>
               </select>
             </div>

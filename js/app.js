@@ -180,12 +180,12 @@ class App {
       bgContrast: 100,
       bgBlur: 0,
       gradient: {
-        active: false,
-        presetId: null,
+        active: true,
+        presetId: 'bottom-fade',
         type: 'linear',
         angle: 180,
-        opacity: 80,
-        height: 100,
+        opacity: 100,
+        height: 50,
         blendMode: 'normal',
         stops: [
           { color: '#000000', alpha: 0, position: 0.2 },

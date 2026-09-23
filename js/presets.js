@@ -10,7 +10,8 @@ export const GRADIENT_PRESETS = [
     description: 'Smooth fade to dark for ultimate text readability',
     type: 'linear',
     angle: 180,
-    opacity: 0.85,
+    opacity: 1.0,
+    height: 50,
     blendMode: 'normal',
     stops: [
       { color: '#000000', alpha: 0, position: 0.2 },
