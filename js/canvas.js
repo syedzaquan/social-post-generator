@@ -306,7 +306,7 @@ export class CanvasRenderer {
       fontFace += `@font-face{font-family:ExportFraunces;src:url(data:font/ttf;base64,${fontDataItalic}) format('truetype');font-style:italic;font-weight:100 900;}`;
     }
 
-    const shadow = layer.hasShadow ? '<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.85"/></filter>' : '';
+    const shadow = layer.hasShadow ? '<filter id="shadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="-5" dy="0" stdDeviation="42" flood-color="#000000" flood-opacity="1"/><feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="#000000" flood-opacity="0.85"/></filter>' : '';
 
     const tspans = bounds.parsedLines.map((lineObj, index) => {
       const lineY = bounds.firstBaseline + (index * bounds.lineHeight);

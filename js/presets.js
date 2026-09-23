@@ -11,7 +11,7 @@ export const GRADIENT_PRESETS = [
     type: 'linear',
     angle: 180,
     opacity: 1.0,
-    height: 60,
+    height: 75,
     blendMode: 'normal',
     stops: [
       { color: '#000000', alpha: 0, position: 0.2 },
