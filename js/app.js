@@ -54,6 +54,14 @@ class App {
 
     // Text & Typography Controls
     this.textInput = document.getElementById('textInput');
+    this.btnFmtBold = document.getElementById('btnFmtBold');
+    this.btnFmtItalic = document.getElementById('btnFmtItalic');
+    this.btnFmtUnderline = document.getElementById('btnFmtUnderline');
+    this.btnFmtColor = document.getElementById('btnFmtColor');
+    this.fmtColorDot = document.getElementById('fmtColorDot');
+    this.fmtColorPopover = document.getElementById('fmtColorPopover');
+    this.fmtCustomColorPicker = document.getElementById('fmtCustomColorPicker');
+    this.btnFmtClear = document.getElementById('btnFmtClear');
     this.softSlider = document.getElementById('softSlider');
     this.softValue = document.getElementById('softValue');
     this.opszSlider = document.getElementById('opszSlider');
@@ -351,7 +359,28 @@ class App {
         div.style.transform = 'none';
       }
 
-      div.innerHTML = bounds.lines.map(line => `<div>${this.renderer.escapeSvg(line) || '&nbsp;'}</div>`).join('');
+      div.innerHTML = bounds.parsedLines.map(lineObj => {
+        const lineHtml = lineObj.tokens.map(token => {
+          const tWeight = token.style.weight ?? 350;
+          const tStyle = token.style.italic ? 'italic' : 'normal';
+          const tColor = token.style.color || layer.color || '#ffffff';
+          const tSoft = token.style.soft ?? (layer.soft ?? 100);
+          const tOpsz = token.style.opsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 72)));
+          const tUnderline = token.style.underline ? 'text-decoration:underline;text-underline-offset:0.12em;text-decoration-thickness:0.04em;' : '';
+
+          const styleAttr = [
+            `font-weight:${tWeight}`,
+            `font-style:${tStyle}`,
+            `color:${tColor}`,
+            `font-variation-settings:'SOFT' ${tSoft}, 'opsz' ${tOpsz}, 'wght' ${tWeight}, 'WONK' 0`,
+            tUnderline
+          ].filter(Boolean).join(';');
+
+          return `<span style="${styleAttr}">${this.renderer.escapeSvg(token.text) || '&nbsp;'}</span>`;
+        }).join('');
+
+        return `<div>${lineHtml || '&nbsp;'}</div>`;
+      }).join('');
     });
 
     existingDivs.forEach((el, id) => {
@@ -748,6 +777,74 @@ class App {
         this.selectedLayer.letterSpacing = val;
         this.letterSpacingValue.textContent = `${val}px`;
         this.render();
+      }
+    });
+
+    // Selection Formatting Toolbar Events (Bold, Italic, Underline, Color, Clear)
+    if (this.btnFmtBold) {
+      this.btnFmtBold.addEventListener('click', () => {
+        this.applySelectionFormat('**', '**', 'bold');
+      });
+    }
+
+    if (this.btnFmtItalic) {
+      this.btnFmtItalic.addEventListener('click', () => {
+        this.applySelectionFormat('*', '*', 'italic');
+      });
+    }
+
+    if (this.btnFmtUnderline) {
+      this.btnFmtUnderline.addEventListener('click', () => {
+        this.applySelectionFormat('<u>', '</u>', 'underline');
+      });
+    }
+
+    if (this.btnFmtColor) {
+      this.btnFmtColor.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.fmtColorPopover) {
+          this.fmtColorPopover.classList.toggle('hidden');
+        }
+      });
+    }
+
+    if (this.fmtColorPopover) {
+      this.fmtColorPopover.querySelectorAll('.swatch-circle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const color = btn.dataset.color;
+          this.applySelectionColor(color);
+          this.fmtColorPopover.querySelectorAll('.swatch-circle').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          if (this.fmtColorDot) this.fmtColorDot.style.background = color;
+          this.fmtColorPopover.classList.add('hidden');
+        });
+      });
+    }
+
+    if (this.fmtCustomColorPicker) {
+      this.fmtCustomColorPicker.addEventListener('input', (e) => {
+        const color = e.target.value;
+        this.applySelectionColor(color);
+        if (this.fmtColorDot) this.fmtColorDot.style.background = color;
+      });
+      this.fmtCustomColorPicker.addEventListener('change', () => {
+        if (this.fmtColorPopover) this.fmtColorPopover.classList.add('hidden');
+      });
+    }
+
+    if (this.btnFmtClear) {
+      this.btnFmtClear.addEventListener('click', () => {
+        this.clearSelectionFormatting();
+      });
+    }
+
+    // Close color popover on click outside
+    document.addEventListener('click', (e) => {
+      if (this.fmtColorPopover && !this.fmtColorPopover.classList.contains('hidden')) {
+        if (!e.target.closest('.color-swatch-dropdown-wrapper')) {
+          this.fmtColorPopover.classList.add('hidden');
+        }
       }
     });
 
@@ -1441,6 +1538,76 @@ class App {
         this.layersList.appendChild(item);
       });
     }
+  }
+
+  applySelectionFormat(openTag, closeTag, defaultPlaceholder = 'text') {
+    if (!this.selectedLayer || this.selectedLayer.id === 'logo') return;
+    const input = this.textInput;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const val = input.value;
+
+    let selectedText = val.substring(start, end);
+    let newStart, newEnd;
+
+    if (selectedText.length > 0) {
+      if (selectedText.startsWith(openTag) && selectedText.endsWith(closeTag)) {
+        const unwrapped = selectedText.slice(openTag.length, selectedText.length - closeTag.length);
+        input.value = val.substring(0, start) + unwrapped + val.substring(end);
+        newStart = start;
+        newEnd = start + unwrapped.length;
+      } else {
+        const replacement = openTag + selectedText + closeTag;
+        input.value = val.substring(0, start) + replacement + val.substring(end);
+        newStart = start;
+        newEnd = start + replacement.length;
+      }
+    } else {
+      const replacement = openTag + defaultPlaceholder + closeTag;
+      input.value = val.substring(0, start) + replacement + val.substring(end);
+      newStart = start + openTag.length;
+      newEnd = newStart + defaultPlaceholder.length;
+    }
+
+    input.focus();
+    input.setSelectionRange(newStart, newEnd);
+    this.selectedLayer.text = input.value;
+    this.render();
+    this.updateSelectionBox();
+  }
+
+  applySelectionColor(color) {
+    if (!this.selectedLayer || this.selectedLayer.id === 'logo') return;
+    const openTag = `<color:${color}>`;
+    const closeTag = '</color>';
+    this.applySelectionFormat(openTag, closeTag, 'colored');
+  }
+
+  clearSelectionFormatting() {
+    if (!this.selectedLayer || this.selectedLayer.id === 'logo') return;
+    const input = this.textInput;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const val = input.value;
+    let newStart, newEnd;
+
+    if (start === end) {
+      input.value = this.renderer.stripFormatting(val);
+      newStart = 0;
+      newEnd = input.value.length;
+    } else {
+      const selected = val.substring(start, end);
+      const cleaned = this.renderer.stripFormatting(selected);
+      input.value = val.substring(0, start) + cleaned + val.substring(end);
+      newStart = start;
+      newEnd = start + cleaned.length;
+    }
+
+    input.focus();
+    input.setSelectionRange(newStart, newEnd);
+    this.selectedLayer.text = input.value;
+    this.render();
+    this.updateSelectionBox();
   }
 
   showToast(message) {

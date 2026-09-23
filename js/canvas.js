@@ -90,29 +90,232 @@ export class CanvasRenderer {
   }
 
   escapeSvg(value) {
-    return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[character]));
+    return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[character]));
+  }
+
+  stripFormatting(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/<color:[^>]+>(.*?)<\/color>/gis, '$1')
+      .replace(/\[color:[^\]]+\](.*?)\[\/color\]/gis, '$1')
+      .replace(/<b>(.*?)<\/b>/gis, '$1')
+      .replace(/<i>(.*?)<\/i>/gis, '$1')
+      .replace(/<u>(.*?)<\/u>/gis, '$1')
+      .replace(/\*\*(.*?)\*\*/gs, '$1')
+      .replace(/__(.*?)__/gs, '$1')
+      .replace(/\*(.*?)\*/gs, '$1')
+      .replace(/_(.*?)_/gs, '$1');
+  }
+
+  parseLineTokens(text, baseStyle = {}) {
+    const tokens = [];
+
+    const parse = (str, currentStyle) => {
+      if (!str) return;
+
+      const tagRegex = /(?:<color:([^>]+)>(.*?)<\/color>|\[color:([^\]]+)\](.*?)\[\/color\]|<b>(.*?)<\/b>|<i>(.*?)<\/i>|<u>(.*?)<\/u>|\*\*(.*?)\*\*|__(.*?)__|\*(.*?)\*|_(.*?)_)/is;
+      const match = tagRegex.exec(str);
+
+      if (!match) {
+        if (str.length > 0) {
+          tokens.push({ text: str, style: { ...currentStyle } });
+        }
+        return;
+      }
+
+      const matchIndex = match.index;
+      if (matchIndex > 0) {
+        const beforeText = str.slice(0, matchIndex);
+        tokens.push({ text: beforeText, style: { ...currentStyle } });
+      }
+
+      const matchedFull = match[0];
+      let innerText = '';
+      let nextStyle = { ...currentStyle };
+
+      if (match[1] !== undefined) {
+        nextStyle.color = match[1];
+        innerText = match[2];
+      } else if (match[3] !== undefined) {
+        nextStyle.color = match[3];
+        innerText = match[4];
+      } else if (match[5] !== undefined) {
+        nextStyle.weight = Math.min(900, Math.max(700, (currentStyle.weight ?? 350) + 300));
+        innerText = match[5];
+      } else if (match[6] !== undefined) {
+        nextStyle.italic = true;
+        innerText = match[6];
+      } else if (match[7] !== undefined) {
+        nextStyle.underline = true;
+        innerText = match[7];
+      } else if (match[8] !== undefined) {
+        nextStyle.weight = Math.min(900, Math.max(700, (currentStyle.weight ?? 350) + 300));
+        innerText = match[8];
+      } else if (match[9] !== undefined) {
+        nextStyle.underline = true;
+        innerText = match[9];
+      } else if (match[10] !== undefined) {
+        nextStyle.italic = true;
+        innerText = match[10];
+      } else if (match[11] !== undefined) {
+        nextStyle.italic = true;
+        innerText = match[11];
+      }
+
+      parse(innerText, nextStyle);
+
+      const afterText = str.slice(matchIndex + matchedFull.length);
+      parse(afterText, currentStyle);
+    };
+
+    const initialStyle = {
+      weight: baseStyle.fontWeight ?? 350,
+      italic: Boolean(baseStyle.italic),
+      color: baseStyle.color || '#ffffff',
+      underline: Boolean(baseStyle.underline),
+      soft: baseStyle.soft ?? 100,
+      opsz: baseStyle.fontOpsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 72))
+    };
+
+    parse(text, initialStyle);
+    return tokens.filter(t => t.text.length > 0);
+  }
+
+  parseAndWrapText(ctx, rawText, maxWidth, baseLayer) {
+    if (!rawText) return [];
+
+    const baseStyle = {
+      weight: baseLayer.fontWeight ?? 350,
+      italic: Boolean(baseLayer.italic),
+      color: baseLayer.color || '#ffffff',
+      underline: Boolean(baseLayer.underline),
+      soft: baseLayer.soft ?? 100,
+      opsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 72)),
+      fontSize: baseLayer.fontSize || 72,
+      letterSpacing: baseLayer.letterSpacing !== undefined ? baseLayer.letterSpacing : -1
+    };
+
+    const paragraphs = rawText.split('\n');
+    const wrappedLines = [];
+
+    for (const paragraph of paragraphs) {
+      if (paragraph.trim() === '') {
+        wrappedLines.push({
+          tokens: [{ text: '', style: { ...baseStyle } }],
+          text: '',
+          width: 0
+        });
+        continue;
+      }
+
+      const paragraphTokens = this.parseLineTokens(paragraph, baseStyle);
+      let currentLineTokens = [];
+      let currentLineWidth = 0;
+
+      for (const token of paragraphTokens) {
+        const style = token.style.italic ? 'italic' : 'normal';
+        const weight = token.style.weight ?? 350;
+        const fontSize = baseStyle.fontSize;
+        ctx.font = `${style} ${weight} ${fontSize}px 'Fraunces', serif`;
+
+        const chunks = token.text.match(/\S+|\s+/g) || [];
+        for (const chunk of chunks) {
+          const isSpace = /^\s+$/.test(chunk);
+
+          if (isSpace) {
+            if (currentLineTokens.length === 0) {
+              // Ignore leading space at the start of a line
+              continue;
+            }
+            let spaceWidth = ctx.measureText(chunk).width;
+            if (baseStyle.letterSpacing !== 0) {
+              spaceWidth += chunk.length * baseStyle.letterSpacing;
+            }
+            currentLineTokens.push({ text: chunk, style: { ...token.style } });
+            currentLineWidth += spaceWidth;
+            continue;
+          }
+
+          // Non-whitespace word chunk
+          let wordWidth = ctx.measureText(chunk).width;
+          if (baseStyle.letterSpacing !== 0) {
+            wordWidth += Math.max(0, chunk.length - 1) * baseStyle.letterSpacing;
+          }
+
+          if (currentLineWidth + wordWidth > maxWidth && currentLineTokens.length > 0) {
+            // Trim trailing space tokens from current line before wrapping
+            while (currentLineTokens.length > 0 && /^\s+$/.test(currentLineTokens[currentLineTokens.length - 1].text)) {
+              currentLineTokens.pop();
+            }
+            const linePlain = currentLineTokens.map(t => t.text).join('');
+            wrappedLines.push({
+              tokens: currentLineTokens,
+              text: linePlain,
+              width: currentLineWidth
+            });
+
+            currentLineTokens = [{ text: chunk, style: { ...token.style } }];
+            currentLineWidth = wordWidth;
+          } else {
+            currentLineTokens.push({ text: chunk, style: { ...token.style } });
+            currentLineWidth += wordWidth;
+          }
+        }
+      }
+
+      if (currentLineTokens.length > 0) {
+        // Trim trailing space tokens
+        while (currentLineTokens.length > 0 && /^\s+$/.test(currentLineTokens[currentLineTokens.length - 1].text)) {
+          currentLineTokens.pop();
+        }
+        const linePlain = currentLineTokens.map(t => t.text).join('');
+        wrappedLines.push({
+          tokens: currentLineTokens,
+          text: linePlain,
+          width: currentLineWidth
+        });
+      }
+    }
+
+    return wrappedLines;
   }
 
   async drawExportText(ctx, layer, bounds) {
     const style = layer.italic ? 'italic' : 'normal';
-    const fontData = await this.getExportFontData(style);
-    const weight = layer.fontWeight ?? 350;
+    const hasItalicToken = bounds.parsedLines.some(l => l.tokens.some(t => t.style.italic));
+    const fontDataNormal = await this.getExportFontData('normal');
+    const fontDataItalic = (layer.italic || hasItalicToken) ? await this.getExportFontData('italic') : '';
     const fontSize = layer.fontSize || 72;
-    const soft = layer.soft ?? 100;
-    const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
     const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
     const anchor = (layer.align || 'center') === 'left' ? 'start' : (layer.align || 'center') === 'right' ? 'end' : 'middle';
-    const fontFace = fontData
-      ? `@font-face{font-family:ExportFraunces;src:url(data:font/ttf;base64,${fontData}) format('truetype');font-style:${style};font-weight:100 900;}`
-      : '';
+
+    let fontFace = '';
+    if (fontDataNormal) {
+      fontFace += `@font-face{font-family:ExportFraunces;src:url(data:font/ttf;base64,${fontDataNormal}) format('truetype');font-style:normal;font-weight:100 900;}`;
+    }
+    if (fontDataItalic) {
+      fontFace += `@font-face{font-family:ExportFraunces;src:url(data:font/ttf;base64,${fontDataItalic}) format('truetype');font-style:italic;font-weight:100 900;}`;
+    }
+
     const shadow = layer.hasShadow ? '<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.85"/></filter>' : '';
 
-    const tspans = bounds.lines.map((line, index) => {
+    const tspans = bounds.parsedLines.map((lineObj, index) => {
       const lineY = bounds.firstBaseline + (index * bounds.lineHeight);
-      return `<tspan x="${layer.x}" y="${lineY}">${this.escapeSvg(line)}</tspan>`;
+      const innerTspans = lineObj.tokens.map(token => {
+        const tWeight = token.style.weight ?? 350;
+        const tStyle = token.style.italic ? 'italic' : 'normal';
+        const tColor = token.style.color || layer.color || '#ffffff';
+        const tSoft = token.style.soft ?? (layer.soft ?? 100);
+        const tOpsz = token.style.opsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize)));
+        const tUnderline = token.style.underline ? ' text-decoration="underline"' : '';
+
+        return `<tspan font-weight="${tWeight}" font-style="${tStyle}" fill="${this.escapeSvg(tColor)}"${tUnderline} style="font-variation-settings:'SOFT' ${tSoft}, 'opsz' ${tOpsz}, 'wght' ${tWeight}, 'WONK' 0">${this.escapeSvg(token.text)}</tspan>`;
+      }).join('');
+
+      return `<tspan x="${layer.x}" y="${lineY}">${innerTspans}</tspan>`;
     }).join('');
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace}</style><defs>${shadow}</defs><text x="${layer.x}" text-anchor="${anchor}" font-family="${fontData ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}px" font-style="${style}" font-weight="${weight}" letter-spacing="${letterSpacing}px" fill="${this.escapeSvg(layer.color || '#ffffff')}" style="font-variation-settings:'SOFT' ${soft}, 'opsz' ${opsz}, 'wght' ${weight}, 'WONK' 0"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${this.logicalWidth}" height="${this.logicalHeight}" viewBox="0 0 ${this.logicalWidth} ${this.logicalHeight}"><style>${fontFace}</style><defs>${shadow}</defs><text x="${layer.x}" text-anchor="${anchor}" font-family="${(fontDataNormal || fontDataItalic) ? 'ExportFraunces' : 'Fraunces'}, serif" font-size="${fontSize}px" letter-spacing="${letterSpacing}px"${layer.hasShadow ? ' filter="url(#shadow)"' : ''}>${tspans}</text></svg>`;
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     try {
       const image = await this.loadImage(url);
@@ -121,36 +324,6 @@ export class CanvasRenderer {
       this.imageCache.delete(url);
       URL.revokeObjectURL(url);
     }
-  }
-
-  // Measure text and break into wrapped lines based on max width
-  wrapText(ctx, text, maxWidth) {
-    if (!text) return [];
-    const paragraphs = text.split('\n');
-    const lines = [];
-
-    for (const paragraph of paragraphs) {
-      if (paragraph.trim() === '') {
-        lines.push('');
-        continue;
-      }
-      const words = paragraph.split(' ');
-      let currentLine = words[0] || '';
-
-      for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const testLine = currentLine + ' ' + word;
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth) {
-          lines.push(currentLine);
-          currentLine = word;
-        } else {
-          currentLine = testLine;
-        }
-      }
-      lines.push(currentLine);
-    }
-    return lines;
   }
 
   // Calculate text layer bounding box in logical canvas coordinates
@@ -171,19 +344,16 @@ export class CanvasRenderer {
     }
 
     const maxWidth = this.logicalWidth * 0.84;
-    const lines = this.wrapText(ctx, layer.text, maxWidth);
+    const parsedLines = this.parseAndWrapText(ctx, layer.text, maxWidth, layer);
+    const lines = parsedLines.map(l => l.text);
     const lineHeight = fontSize * (layer.lineHeight || 1.15);
 
     let maxLineWidth = 0;
-    for (const line of lines) {
-      let w = ctx.measureText(line).width;
-      if (!('letterSpacing' in ctx) && letterSpacing !== 0) {
-        w += Math.max(0, line.length - 1) * letterSpacing;
-      }
-      if (w > maxLineWidth) maxLineWidth = w;
+    for (const l of parsedLines) {
+      if (l.width > maxLineWidth) maxLineWidth = l.width;
     }
 
-    const totalHeight = Math.max(lines.length * lineHeight, fontSize);
+    const totalHeight = Math.max(parsedLines.length * lineHeight, fontSize);
     let x = layer.x;
     let y = layer.y;
 
@@ -217,6 +387,7 @@ export class CanvasRenderer {
       padX,
       padY,
       lines,
+      parsedLines,
       lineHeight,
       maxLineWidth,
       firstBaseline,

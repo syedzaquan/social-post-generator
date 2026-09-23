@@ -537,6 +537,13 @@ html, body {
   white-space: pre;
 }
 
+.dom-text-layer span {
+  display: inline;
+  line-height: inherit;
+  text-underline-offset: 0.12em;
+  text-decoration-thickness: 0.04em;
+}
+
 /* ==========================================================================
    Floating Overlay Controls Dock
    ========================================================================== */
@@ -805,6 +812,168 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Inline Text Selection Formatting Toolbar */
+.inline-format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+
+.format-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.format-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.format-btn:active {
+  transform: scale(0.95);
+}
+
+.format-btn strong {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.format-btn em {
+  font-family: 'Fraunces', serif;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.format-btn u {
+  text-underline-offset: 2px;
+}
+
+.format-btn-color {
+  padding: 0 9px;
+  font-size: 11.5px;
+}
+
+.color-dot-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  display: inline-block;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.format-btn-clear {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.format-btn-clear:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* Color Swatches Popover */
+.color-swatch-dropdown-wrapper {
+  position: relative;
+}
+
+.color-swatches-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 8px;
+  background: rgba(18, 22, 34, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
+  animation: fadeInDown 0.15s ease-out;
+}
+
+.color-swatches-popover.hidden {
+  display: none !important;
+}
+
+.swatch-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.swatch-circle:hover {
+  transform: scale(1.18);
+  border-color: #ffffff;
+}
+
+.swatch-circle.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.swatch-custom-picker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f43f5e, #8b5cf6, #06b6d4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.swatch-custom-picker input[type="color"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.swatch-custom-icon {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Inputs & Textareas */

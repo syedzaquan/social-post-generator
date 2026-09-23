@@ -172,7 +172,48 @@
               <label for="textInput" class="section-label">Typography</label>
               <button id="btnAddTextLayer" class="pill-btn-small">+ Add Text</button>
             </div>
-            <textarea id="textInput" class="text-input" rows="2" placeholder="Write headline..."></textarea>
+            
+            <!-- Inline Selection Formatting Toolbar -->
+            <div class="inline-format-toolbar" id="inlineFormatToolbar">
+              <button type="button" class="format-btn" id="btnFmtBold" title="Bold selection (700 weight)">
+                <strong>B</strong>
+              </button>
+              <button type="button" class="format-btn" id="btnFmtItalic" title="Italicize selection">
+                <em>I</em>
+              </button>
+              <button type="button" class="format-btn" id="btnFmtUnderline" title="Underline selection">
+                <u>U</u>
+              </button>
+              
+              <div class="color-swatch-dropdown-wrapper">
+                <button type="button" class="format-btn format-btn-color" id="btnFmtColor" title="Highlight color on selection">
+                  <span class="color-dot-indicator" id="fmtColorDot" style="background: #f59e0b;"></span>
+                  <span>Color</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="color-swatches-popover hidden" id="fmtColorPopover">
+                  <button type="button" class="swatch-circle" data-color="#ffffff" style="background: #ffffff;" title="White"></button>
+                  <button type="button" class="swatch-circle active" data-color="#f59e0b" style="background: #f59e0b;" title="Amber / Gold"></button>
+                  <button type="button" class="swatch-circle" data-color="#ef4444" style="background: #ef4444;" title="Crimson Red"></button>
+                  <button type="button" class="swatch-circle" data-color="#06b6d4" style="background: #06b6d4;" title="Electric Cyan"></button>
+                  <button type="button" class="swatch-circle" data-color="#10b981" style="background: #10b981;" title="Emerald Green"></button>
+                  <button type="button" class="swatch-circle" data-color="#a855f7" style="background: #a855f7;" title="Neon Purple"></button>
+                  <button type="button" class="swatch-circle" data-color="#f43f5e" style="background: #f43f5e;" title="Rose Pink"></button>
+                  <button type="button" class="swatch-circle" data-color="#fde047" style="background: #fde047;" title="Lemon Yellow"></button>
+                  <button type="button" class="swatch-circle" data-color="#94a3b8" style="background: #94a3b8;" title="Muted Slate"></button>
+                  <label class="swatch-custom-picker" title="Custom Hex Color">
+                    <input type="color" id="fmtCustomColorPicker" value="#f59e0b">
+                    <span class="swatch-custom-icon">+</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="button" class="format-btn format-btn-clear" id="btnFmtClear" title="Clear formatting on selection">
+                <span>Clear</span>
+              </button>
+            </div>
+
+            <textarea id="textInput" class="text-input" rows="2" placeholder="Write headline... (Highlight words to apply formatting)"></textarea>
           </div>
 
           <!-- Variable Axes (SOFT & opsz) in spacious 2-col -->
