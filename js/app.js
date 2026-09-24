@@ -4,13 +4,13 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.4';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.5';
 import { TouchControls } from './touch-controls.js?v=2.9';
 import { 
   GRADIENT_PRESETS, 
   SAMPLE_BACKGROUNDS, 
   STARTER_TEMPLATES 
-} from './presets.js?v=3.4';
+} from './presets.js?v=3.5';
 
 // Self-contained sample sticker graphics (prevents browser module caching errors)
 export const SAMPLE_STICKERS = {
@@ -208,12 +208,12 @@ class App {
         {
           id: 'text-1',
           text: 'Design with intention, craft with soul.',
-          fontSize: 88,
+          fontSize: 94,
           fontWeight: 350, // DEFAULT: 350
-          fontOpsz: 88,
+          fontOpsz: 94,
           soft: 100, // DEFAULT: SOFT 100
           letterSpacing: -1, 
-          lineHeight: 0.95,
+          lineHeight: 1,
           align: 'center',
           color: '#ffffff',
           italic: false, // DEFAULT: NON-ITALIC
@@ -338,10 +338,10 @@ class App {
       div.style.fontFamily = "'Fraunces', serif";
       div.style.fontStyle = layer.italic ? 'italic' : 'normal';
       div.style.fontWeight = layer.fontWeight ?? 350;
-      div.style.fontSize = `${(layer.fontSize || 88) * scale}px`;
+      div.style.fontSize = `${(layer.fontSize || 94) * scale}px`;
       div.style.fontOpticalSizing = 'none';
       div.style.webkitFontOpticalSizing = 'none';
-      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 88))}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
+      div.style.fontVariationSettings = `'SOFT' ${layer.soft ?? 100}, 'opsz' ${layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 94))}, 'wght' ${layer.fontWeight ?? 350}, 'WONK' 0`;
       div.style.letterSpacing = `${(layer.letterSpacing !== undefined ? layer.letterSpacing : -1) * scale}px`;
       div.style.lineHeight = `${bounds.lineHeight * scale}px`;
       div.style.color = layer.color || '#ffffff';
@@ -377,7 +377,7 @@ class App {
           const tStyle = token.style.italic ? 'italic' : 'normal';
           const tColor = token.style.color || layer.color || '#ffffff';
           const tSoft = token.style.soft ?? (layer.soft ?? 100);
-          const tOpsz = token.style.opsz ?? token.style.fontOpsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 88)));
+          const tOpsz = token.style.opsz ?? token.style.fontOpsz ?? (layer.fontOpsz ?? Math.max(9, Math.min(144, layer.fontSize || 94)));
           const tUnderline = token.style.underline ? 'text-decoration:underline;text-underline-offset:0.12em;text-decoration-thickness:0.04em;' : '';
 
           const styleAttr = [
@@ -600,18 +600,18 @@ class App {
       this.softValue.textContent = l.soft ?? 100;
 
       // Optical Size
-      this.opszSlider.value = l.fontOpsz ?? 88;
-      this.opszValue.textContent = l.fontOpsz ?? 88;
+      this.opszSlider.value = l.fontOpsz ?? 94;
+      this.opszValue.textContent = l.fontOpsz ?? 94;
 
       // Font Weight
       this.fontWeightSlider.value = l.fontWeight ?? 350;
       this.fontWeightValue.textContent = l.fontWeight ?? 350;
 
       // Size & Spacing
-      this.fontSizeSlider.value = l.fontSize || 88;
-      this.fontSizeValue.textContent = `${l.fontSize || 88}px`;
-      this.lineHeightSlider.value = l.lineHeight || 0.95;
-      this.lineHeightValue.textContent = (l.lineHeight || 0.95).toFixed(2);
+      this.fontSizeSlider.value = l.fontSize || 94;
+      this.fontSizeValue.textContent = `${l.fontSize || 94}px`;
+      this.lineHeightSlider.value = l.lineHeight !== undefined ? l.lineHeight : 1;
+      this.lineHeightValue.textContent = (l.lineHeight !== undefined ? l.lineHeight : 1).toFixed(2);
       this.letterSpacingSlider.value = l.letterSpacing !== undefined ? l.letterSpacing : -1;
       this.letterSpacingValue.textContent = `${l.letterSpacing !== undefined ? l.letterSpacing : -1}px`;
       if (this.textRotationSlider) {
@@ -986,12 +986,12 @@ class App {
       const newLayer = {
         id: `text-${Date.now()}`,
         text: 'New Fraunces Text',
-        fontSize: 88,
+        fontSize: 94,
         fontWeight: 350, // DEFAULT 350
-        fontOpsz: 88,
+        fontOpsz: 94,
         soft: 100,
         letterSpacing: -1,
-        lineHeight: 0.95,
+        lineHeight: 1,
         align: 'center',
         color: '#ffffff',
         italic: false, // DEFAULT NON-ITALIC

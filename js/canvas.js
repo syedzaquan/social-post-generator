@@ -175,8 +175,8 @@ export class CanvasRenderer {
       color: baseStyle.color || '#ffffff',
       underline: Boolean(baseStyle.underline),
       soft: baseStyle.soft ?? 100,
-      opsz: baseStyle.fontOpsz ?? baseStyle.opsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 88)),
-      fontOpsz: baseStyle.fontOpsz ?? baseStyle.opsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 88))
+      opsz: baseStyle.fontOpsz ?? baseStyle.opsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 94)),
+      fontOpsz: baseStyle.fontOpsz ?? baseStyle.opsz ?? Math.max(9, Math.min(144, baseStyle.fontSize || 94))
     };
 
     parse(text, initialStyle);
@@ -193,9 +193,9 @@ export class CanvasRenderer {
       color: baseLayer.color || '#ffffff',
       underline: Boolean(baseLayer.underline),
       soft: baseLayer.soft ?? 100,
-      opsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 88)),
-      fontOpsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 88)),
-      fontSize: baseLayer.fontSize || 88,
+      opsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 94)),
+      fontOpsz: baseLayer.fontOpsz ?? Math.max(9, Math.min(144, baseLayer.fontSize || 94)),
+      fontSize: baseLayer.fontSize || 94,
       letterSpacing: baseLayer.letterSpacing !== undefined ? baseLayer.letterSpacing : -1
     };
 
@@ -294,7 +294,7 @@ export class CanvasRenderer {
     const hasItalicToken = bounds.parsedLines.some(l => l.tokens.some(t => t.style.italic));
     const fontDataNormal = await this.getExportFontData('normal');
     const fontDataItalic = (layer.italic || hasItalicToken) ? await this.getExportFontData('italic') : '';
-    const fontSize = layer.fontSize || 88;
+    const fontSize = layer.fontSize || 94;
     const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
     const anchor = (layer.align || 'center') === 'left' ? 'start' : (layer.align || 'center') === 'right' ? 'end' : 'middle';
 
@@ -339,7 +339,7 @@ export class CanvasRenderer {
   getTextBounds(ctx, layer) {
     const style = layer.italic ? 'italic' : 'normal';
     const weight = layer.fontWeight ?? 350;
-    const fontSize = layer.fontSize || 88;
+    const fontSize = layer.fontSize || 94;
     const soft = layer.soft ?? 100;
     const opsz = layer.fontOpsz ?? Math.max(9, Math.min(144, fontSize));
     const letterSpacing = layer.letterSpacing !== undefined ? layer.letterSpacing : -1;
@@ -355,7 +355,7 @@ export class CanvasRenderer {
     const maxWidth = this.logicalWidth * 0.84;
     const parsedLines = this.parseAndWrapText(ctx, layer.text, maxWidth, layer);
     const lines = parsedLines.map(l => l.text);
-    const lineHeight = fontSize * (layer.lineHeight || 0.95);
+    const lineHeight = fontSize * (layer.lineHeight !== undefined ? layer.lineHeight : 1);
 
     let maxLineWidth = 0;
     for (const l of parsedLines) {
@@ -590,10 +590,10 @@ export class CanvasRenderer {
     const defaultLogoImg = await this.loadImage('assets/logo.png');
     if (defaultLogoImg) {
       ctx.save();
-      const logoW = 200;
+      const logoW = 160;
       const logoH = logoW * (defaultLogoImg.naturalHeight || defaultLogoImg.height) / (defaultLogoImg.naturalWidth || defaultLogoImg.width);
-      const marginX = this.logicalWidth * 0.04;
-      const marginY = this.logicalHeight * 0.04;
+      const marginX = this.logicalWidth * 0.025;
+      const marginY = this.logicalHeight * 0.025;
       const posX = this.logicalWidth - marginX - logoW;
       const posY = this.logicalHeight - marginY - logoH;
       ctx.globalAlpha = 1;
