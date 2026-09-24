@@ -11,13 +11,16 @@ export const GRADIENT_PRESETS = [
     type: 'linear',
     angle: 180,
     opacity: 1.0,
-    height: 75,
+    height: 80,
     blendMode: 'normal',
     stops: [
-      { color: '#000000', alpha: 0, position: 0.2 },
+      { color: '#000000', alpha: 0, position: 0 },
+      { color: '#000000', alpha: 0.45, position: 0.35 },
+      { color: '#000000', alpha: 0.85, position: 0.65 },
+      { color: '#000000', alpha: 0.98, position: 0.85 },
       { color: '#000000', alpha: 1.0, position: 1.0 }
     ],
-    preview: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%)'
+    preview: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.45) 35%, rgba(0,0,0,0.85) 65%, rgba(0,0,0,1) 100%)'
   },
   {
     id: 'sunset-glow',
@@ -189,7 +192,7 @@ export const STARTER_TEMPLATES = [
         align: 'center',
         color: '#fef3c7',
         italic: true,
-        hasShadow: true,
+        hasShadow: false,
         isBadge: false,
         x: 540,
         y: 520
@@ -230,7 +233,7 @@ export const STARTER_TEMPLATES = [
         align: 'left',
         color: '#ffffff',
         italic: false,
-        hasShadow: true,
+        hasShadow: false,
         isBadge: false,
         x: 80,
         y: 600

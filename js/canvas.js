@@ -509,12 +509,14 @@ export class CanvasRenderer {
         const angleRad = ((grad.angle ?? 180) - 90) * (Math.PI / 180);
         const cx = this.logicalWidth / 2;
         const cy = this.logicalHeight / 2;
-        const halfDiag = Math.sqrt(this.logicalWidth ** 2 + this.logicalHeight ** 2) / 2;
+        const cosA = Math.cos(angleRad);
+        const sinA = Math.sin(angleRad);
+        const halfLen = (this.logicalWidth * Math.abs(cosA) + this.logicalHeight * Math.abs(sinA)) / 2;
 
-        const x0 = cx - Math.cos(angleRad) * halfDiag;
-        const y0 = cy - Math.sin(angleRad) * halfDiag;
-        const x1 = cx + Math.cos(angleRad) * halfDiag;
-        const y1 = cy + Math.sin(angleRad) * halfDiag;
+        const x0 = cx - cosA * halfLen;
+        const y0 = cy - sinA * halfLen;
+        const x1 = cx + cosA * halfLen;
+        const y1 = cy + sinA * halfLen;
 
         canvasGradient = ctx.createLinearGradient(x0, y0, x1, y1);
       }
@@ -584,7 +586,7 @@ export class CanvasRenderer {
       }
     }
 
-    // 4. Render Default Brand Logo (assets/logo.png at top-left 4% safe area with 200px width and subtle dropshadow)
+    // 4. Render Default Brand Logo (assets/logo.png at bottom-right 4% safe area with 200px width and subtle dropshadow)
     const defaultLogoImg = await this.loadImage('assets/logo.png');
     if (defaultLogoImg) {
       ctx.save();
@@ -592,15 +594,17 @@ export class CanvasRenderer {
       const logoH = logoW * (defaultLogoImg.naturalHeight || defaultLogoImg.height) / (defaultLogoImg.naturalWidth || defaultLogoImg.width);
       const marginX = this.logicalWidth * 0.04;
       const marginY = this.logicalHeight * 0.04;
+      const posX = this.logicalWidth - marginX - logoW;
+      const posY = this.logicalHeight - marginY - logoH;
       ctx.globalAlpha = 1;
 
       // High-contrast, wider dropshadow for legibility on any background.
       ctx.shadowColor = 'rgba(0, 0, 0, 1)';
       ctx.shadowBlur = 84;
-      ctx.shadowOffsetX = -5;
+      ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
 
-      ctx.drawImage(defaultLogoImg, marginX, marginY, logoW, logoH);
+      ctx.drawImage(defaultLogoImg, posX, posY, logoW, logoH);
       ctx.restore();
     }
 

@@ -4,13 +4,13 @@
    optical size, letter-spacing, and default 400 italic typography.
    ========================================================================== */
 
-import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.2';
+import { CanvasRenderer, ASPECT_RATIOS } from './canvas.js?v=3.4';
 import { TouchControls } from './touch-controls.js?v=2.9';
 import { 
   GRADIENT_PRESETS, 
   SAMPLE_BACKGROUNDS, 
   STARTER_TEMPLATES 
-} from './presets.js?v=3.2';
+} from './presets.js?v=3.4';
 
 // Self-contained sample sticker graphics (prevents browser module caching errors)
 export const SAMPLE_STICKERS = {
@@ -193,10 +193,13 @@ class App {
         type: 'linear',
         angle: 180,
         opacity: 100,
-        height: 75,
+        height: 80,
         blendMode: 'normal',
         stops: [
-          { color: '#000000', alpha: 0, position: 0.2 },
+          { color: '#000000', alpha: 0, position: 0 },
+          { color: '#000000', alpha: 0.45, position: 0.35 },
+          { color: '#000000', alpha: 0.85, position: 0.65 },
+          { color: '#000000', alpha: 0.98, position: 0.85 },
           { color: '#000000', alpha: 1.0, position: 1.0 }
         ]
       },
@@ -214,10 +217,10 @@ class App {
           align: 'center',
           color: '#ffffff',
           italic: false, // DEFAULT: NON-ITALIC
-          hasShadow: true, // DEFAULT: DROP SHADOW LIKE LOGO.PNG
+          hasShadow: false, // DEFAULT: NO DROP SHADOW
           isBadge: false,
           x: 540,
-          y: 1065 // 15% from the bottom of 1350 canvas (text center at ~1148px)
+          y: 795 // Moved 20% higher up (~35% from bottom of 1350 canvas)
         }
       ]
     };
@@ -673,7 +676,7 @@ class App {
         });
       }
       this.gradientBlendMode.value = this.state.gradient.blendMode || 'normal';
-      const gradHeight = this.state.gradient.height ?? 75;
+      const gradHeight = this.state.gradient.height ?? 80;
       if (this.gradientHeightSlider) {
         this.gradientHeightSlider.value = gradHeight;
         this.gradientHeightValue.textContent = `${gradHeight}%`;
